@@ -10,23 +10,24 @@ using namespace std;
 class Tools {
 public:
   /**
-  * Constructor.
-  */
+   * Constructor.
+   */
   Tools();
 
   /**
-  * Destructor.
-  */
+   * Destructor.
+   */
   virtual ~Tools();
 
   /**
-  * A helper method to calculate RMSE.
-  */
-  VectorXd CalculateRMSE(const vector<VectorXd> &estimations, const vector<VectorXd> &ground_truth);
+   * A helper method to calculate RMSE.
+   */
+  VectorXd CalculateRMSE(const vector<VectorXd> &estimations,
+                         const vector<VectorXd> &ground_truth);
 
   /**
-  * A helper method to calculate Jacobians.
-  */
+   * A helper method to calculate Jacobians.
+   */
   MatrixXd CalculateJacobian(const VectorXd& x_state);
 
 };
