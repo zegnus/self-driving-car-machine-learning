@@ -54,7 +54,7 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/fgarriga/Development/udacity/self-driving-car/submissions/p6-extended-kalman-filters
+CMAKE_SOURCE_DIR = /home/fgarriga/Development/udacity/self-driving-car/submissions/p6-extended-kalman-filters/src
 
 # The top-level build directory on which CMake was run.
 CMAKE_BINARY_DIR = /home/fgarriga/Development/udacity/self-driving-car/submissions/p6-extended-kalman-filters/build
