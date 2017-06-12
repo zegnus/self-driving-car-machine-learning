@@ -1,0 +1,22 @@
+[
+{
+  "directory": "/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/build",
+  "command": "/usr/bin/c++     -g   -std=c++11 -o CMakeFiles/ExtendedKF.dir/src/main.cpp.o -c \"/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/src/main.cpp\"",
+  "file": "/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/src/main.cpp"
+},
+{
+  "directory": "/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/build",
+  "command": "/usr/bin/c++     -g   -std=c++11 -o CMakeFiles/ExtendedKF.dir/src/tools.cpp.o -c \"/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/src/tools.cpp\"",
+  "file": "/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/src/tools.cpp"
+},
+{
+  "directory": "/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/build",
+  "command": "/usr/bin/c++     -g   -std=c++11 -o CMakeFiles/ExtendedKF.dir/src/FusionEKF.cpp.o -c \"/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/src/FusionEKF.cpp\"",
+  "file": "/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/src/FusionEKF.cpp"
+},
+{
+  "directory": "/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/build",
+  "command": "/usr/bin/c++     -g   -std=c++11 -o CMakeFiles/ExtendedKF.dir/src/kalman_filter.cpp.o -c \"/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/src/kalman_filter.cpp\"",
+  "file": "/home/fgarriga/Development/udacity/self-driving-car/term2/Project 1 - Extended Kalman Filter/CarND-Extended-Kalman-Filter-Project/src/kalman_filter.cpp"
+}
+]
