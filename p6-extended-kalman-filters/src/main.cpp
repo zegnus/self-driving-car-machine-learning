@@ -43,17 +43,25 @@ int main() {
         // The 4 signifies a websocket message
         // The 2 signifies a websocket event
 
+        cout << "message received" << endl;
+
         if (length && length > 2 && data[0] == '4' && data[1] == '2')
         {
 
+          cout << "inside if" << endl;
+
           auto s = hasData(std::string(data));
           if (s != "") {
+
+            cout << "s not empty" << endl;
 
             auto j = json::parse(s);
 
             std::string event = j[0].get<std::string>();
 
             if (event == "telemetry") {
+
+              cout << "event is telemetry" << endl;
               // j[1] is the data JSON object
 
               string sensor_measurment = j[1]["sensor_measurement"];
@@ -66,7 +74,10 @@ int main() {
               string sensor_type;
               iss >> sensor_type;
 
+              cout << sensor_type << endl;
+
               if (sensor_type.compare("L") == 0) {
+                cout << "Lidar" << endl;
                 meas_package.sensor_type_ = MeasurementPackage::LASER;
                 meas_package.raw_measurements_ = VectorXd(2);
                 float px;
@@ -77,7 +88,7 @@ int main() {
                 iss >> timestamp;
                 meas_package.timestamp_ = timestamp;
               } else if (sensor_type.compare("R") == 0) {
-
+                cout << "Radar" << endl;
                 meas_package.sensor_type_ = MeasurementPackage::RADAR;
                 meas_package.raw_measurements_ = VectorXd(3);
                 float ro;
