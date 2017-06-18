@@ -118,8 +118,8 @@ VectorXd FusionEKF::initialisePositionVelocity(const MeasurementPackage &measure
     position_y = measurement_pack.raw_measurements_[1];
   }
 
-  if (position_x == 0) position_x = 0.0001;
-  if (position_y == 0) position_y = 0.0001;
+  if (fabs(position_x) < 0.0001) position_x = 0.0001;
+  if (fabs(position_y) < 0.0001) position_y = 0.0001;
 
   x << position_x, position_y, velocity_x, velocity_y;
   return x;
