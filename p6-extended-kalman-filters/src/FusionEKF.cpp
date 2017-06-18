@@ -50,8 +50,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   if (!is_initialized_) {
     cout << "EKF: " << endl;
 
-    initialisePositionVelocity(measurement_pack);
-    initialiseTransitionStateMatrixPWithCovariance(1000);
+    ekf_.x_ = initialisePositionVelocity(measurement_pack);
+    ekf_.P_ = initialiseTransitionStateMatrixPWithCovariance(1000);
     updateLocalTimestamp(measurement_pack);
 
     is_initialized_ = true;
@@ -65,11 +65,11 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   float elapsedTime = calculateElapsedTime(measurement_pack);
   updateLocalTimestamp(measurement_pack);
 
-  updateTransitionMatrixPWithElapsedTime(elapsedTime);
+  ekf_.F_ = createTransitionMatrixFWithElapsedTime(elapsedTime);
 
   int noise_ax = 9;
   int noise_ay = 9;
-  updateProcessNoiseMatrixQwith(elapsedTime, noise_ax, noise_ay);
+  ekf_.Q_ = createProcessNoiseMatrixQwith(elapsedTime, noise_ax, noise_ay);
 
   ekf_.Predict();
 
@@ -85,8 +85,12 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     // Radar updates
+    ekf_.R_ = R_radar_;
+
   } else {
     // Laser updates
+    ekf_.R_ = R_laser_;
+    ekf_.H_ = H_laser_;
   }
 
   // print the output
@@ -94,8 +98,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   cout << "P_ = " << ekf_.P_ << endl;
 }
 
-void FusionEKF::initialisePositionVelocity(const MeasurementPackage &measurement_pack) {
-  ekf_.x_ = VectorXd(4);
+VectorXd FusionEKF::initialisePositionVelocity(const MeasurementPackage &measurement_pack) {
+  VectorXd x = VectorXd(4);
 
   float position_x = 1;
   float position_y = 1;
@@ -121,15 +125,17 @@ void FusionEKF::initialisePositionVelocity(const MeasurementPackage &measurement
   if (position_x == 0) position_x = 0.0001;
   if (position_y == 0) position_y = 0.0001;
 
-  ekf_.x_ << position_x, position_y, velocity_x, velocity_y;
+  x << position_x, position_y, velocity_x, velocity_y;
+  return x;
 }
 
-void FusionEKF::initialiseTransitionStateMatrixPWithCovariance(int covariance) {
-  ekf_.P_ = MatrixXd(4, 4);
-  ekf_.P_ << covariance, 0, 0, 0,
-              0, covariance, 0, 0,
-              0, 0, covariance, 0,
-              0, 0, 0, covariance;
+MatrixXd FusionEKF::initialiseTransitionStateMatrixPWithCovariance(int covariance) {
+  MatrixXd P = MatrixXd(4, 4);
+  P << covariance, 0, 0, 0,
+        0, covariance, 0, 0,
+        0, 0, covariance, 0,
+        0, 0, 0, covariance;
+  return P;
 }
 
 void FusionEKF::updateLocalTimestamp(const MeasurementPackage &measurement_pack) {
@@ -141,15 +147,16 @@ float FusionEKF::calculateElapsedTime(const MeasurementPackage &measurement_pack
   return elapsedTime / 1000000.0; // in seconds
 }
 
-void FusionEKF::updateTransitionMatrixPWithElapsedTime(float elapsedTime) {
-  ekf_.F_ = MatrixXd(4, 4);
-  ekf_.F_ << 1, 0, elapsedTime, 0,
-              0, 1, 0, elapsedTime,
-              0, 0, 1, 0,
-              0, 0, 0, 1;
+MatrixXd FusionEKF::createTransitionMatrixFWithElapsedTime(float elapsedTime) {
+  MatrixXd F = MatrixXd(4, 4);
+  F << 1, 0, elapsedTime, 0,
+        0, 1, 0, elapsedTime,
+        0, 0, 1, 0,
+        0, 0, 0, 1;
+  return F;
 }
 
-void FusionEKF::updateProcessNoiseMatrixQwith(float elapsedTime, int noise_ax, int noise_ay) {
+MatrixXd FusionEKF::createProcessNoiseMatrixQwith(float elapsedTime, int noise_ax, int noise_ay) {
   float elapsedTime_power_2 = elapsedTime * elapsedTime;
   float elapsedTime_power_3 = elapsedTime_power_2 * elapsedTime;
   float elapsedTime_power_4 = elapsedTime_power_3 * elapsedTime;
@@ -157,9 +164,10 @@ void FusionEKF::updateProcessNoiseMatrixQwith(float elapsedTime, int noise_ax, i
   float elapsedTime_power_4_divided_by_4 = elapsedTime_power_4 / 4;
   float elapsedtime_power_3_divided_by_2 = elapsedTime_power_3 / 2;
 
-  ekf_.Q_ = MatrixXd(4, 4);
-  ekf_.Q_ << elapsedTime_power_4_divided_by_4 * noise_ax, 0, elapsedtime_power_3_divided_by_2 * noise_ax, 0,
-            0, elapsedTime_power_4_divided_by_4 * noise_ay, 0, elapsedtime_power_3_divided_by_2 * noise_ay,
-            elapsedtime_power_3_divided_by_2 * noise_ax, 0, elapsedTime_power_2 * noise_ax, 0,
-            0, elapsedtime_power_3_divided_by_2 * noise_ay, 0, elapsedTime_power_2 * noise_ay;
+  MatrixXd Q = MatrixXd(4, 4);
+  Q << elapsedTime_power_4_divided_by_4 * noise_ax, 0, elapsedtime_power_3_divided_by_2 * noise_ax, 0,
+        0, elapsedTime_power_4_divided_by_4 * noise_ay, 0, elapsedtime_power_3_divided_by_2 * noise_ay,
+        elapsedtime_power_3_divided_by_2 * noise_ax, 0, elapsedTime_power_2 * noise_ax, 0,
+        0, elapsedtime_power_3_divided_by_2 * noise_ay, 0, elapsedTime_power_2 * noise_ay;
+  return Q;
 }

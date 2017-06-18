@@ -45,12 +45,12 @@ private:
   Eigen::MatrixXd H_laser_;
   Eigen::MatrixXd Hj_;
 
-  void initialisePositionVelocity(const MeasurementPackage &measurement_pack);
-  void initialiseTransitionStateMatrixPWithCovariance(int covariance);
+  VectorXd initialisePositionVelocity(const MeasurementPackage &measurement_pack);
+  MatrixXd initialiseTransitionStateMatrixPWithCovariance(int covariance);
   void updateLocalTimestamp(const MeasurementPackage &measurement_pack);
   float calculateElapsedTime(const MeasurementPackage &measurement_pack);
-  void updateTransitionMatrixPWithElapsedTime(float elapsedTime);
-  void updateProcessNoiseMatrixQwith(float elapsedTime, int noise_ax, int noise_ay);
+  MatrixXd createTransitionMatrixFWithElapsedTime(float elapsedTime);
+  MatrixXd createProcessNoiseMatrixQwith(float elapsedTime, int noise_ax, int noise_ay);
 };
 
 #endif /* FusionEKF_H_ */
