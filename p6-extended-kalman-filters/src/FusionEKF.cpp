@@ -52,7 +52,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
     initialisePositionVelocity(measurement_pack);
     initialiseTransitionStateMatrixPWithCovariance(1000);
-    previous_timestamp_ = measurement_pack.timestamp_;
+    updateLocalTimestamp(measurement_pack);
 
     is_initialized_ = true;
     return;
@@ -62,13 +62,14 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
    *  Prediction
    ****************************************************************************/
 
-  /**
-   TODO:
-   * Update the state transition matrix F according to the new elapsed time.
-   - Time is measured in seconds.
-   * Update the process noise covariance matrix.
-   * Use noise_ax = 9 and noise_ay = 9 for your Q matrix.
-   */
+  float elapsedTime = calculateElapsedTime(measurement_pack);
+  updateLocalTimestamp(measurement_pack);
+
+  updateTransitionMatrixPWithElapsedTime(elapsedTime);
+
+  int noise_ax = 9;
+  int noise_ay = 9;
+  updateProcessNoiseMatrixQwith(elapsedTime, noise_ax, noise_ay);
 
   ekf_.Predict();
 
@@ -129,4 +130,36 @@ void FusionEKF::initialiseTransitionStateMatrixPWithCovariance(int covariance) {
               0, covariance, 0, 0,
               0, 0, covariance, 0,
               0, 0, 0, covariance;
+}
+
+void FusionEKF::updateLocalTimestamp(const MeasurementPackage &measurement_pack) {
+  previous_timestamp_ = measurement_pack.timestamp_;
+}
+
+float FusionEKF::calculateElapsedTime(const MeasurementPackage &measurement_pack) {
+  float elapsedTime = measurement_pack.timestamp_ - previous_timestamp_;
+  return elapsedTime / 1000000.0; // in seconds
+}
+
+void FusionEKF::updateTransitionMatrixPWithElapsedTime(float elapsedTime) {
+  ekf_.F_ = MatrixXd(4, 4);
+  ekf_.F_ << 1, 0, elapsedTime, 0,
+              0, 1, 0, elapsedTime,
+              0, 0, 1, 0,
+              0, 0, 0, 1;
+}
+
+void FusionEKF::updateProcessNoiseMatrixQwith(float elapsedTime, int noise_ax, int noise_ay) {
+  float elapsedTime_power_2 = elapsedTime * elapsedTime;
+  float elapsedTime_power_3 = elapsedTime_power_2 * elapsedTime;
+  float elapsedTime_power_4 = elapsedTime_power_3 * elapsedTime;
+
+  float elapsedTime_power_4_divided_by_4 = elapsedTime_power_4 / 4;
+  float elapsedtime_power_3_divided_by_2 = elapsedTime_power_3 / 2;
+
+  ekf_.Q_ = MatrixXd(4, 4);
+  ekf_.Q_ << elapsedTime_power_4_divided_by_4 * noise_ax, 0, elapsedtime_power_3_divided_by_2 * noise_ax, 0,
+            0, elapsedTime_power_4_divided_by_4 * noise_ay, 0, elapsedtime_power_3_divided_by_2 * noise_ay,
+            elapsedtime_power_3_divided_by_2 * noise_ax, 0, elapsedTime_power_2 * noise_ax, 0,
+            0, elapsedtime_power_3_divided_by_2 * noise_ay, 0, elapsedTime_power_2 * noise_ay;
 }

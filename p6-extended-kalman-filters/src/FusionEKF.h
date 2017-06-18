@@ -35,7 +35,7 @@ private:
   // check whether the tracking toolbox was initialized or not (first measurement)
   bool is_initialized_;
 
-  // previous timestamp
+  // previous timestamp in microseconds
   long long previous_timestamp_;
 
   // tool object used to compute Jacobian and RMSE
@@ -47,6 +47,10 @@ private:
 
   void initialisePositionVelocity(const MeasurementPackage &measurement_pack);
   void initialiseTransitionStateMatrixPWithCovariance(int covariance);
+  void updateLocalTimestamp(const MeasurementPackage &measurement_pack);
+  float calculateElapsedTime(const MeasurementPackage &measurement_pack);
+  void updateTransitionMatrixPWithElapsedTime(float elapsedTime);
+  void updateProcessNoiseMatrixQwith(float elapsedTime, int noise_ax, int noise_ay);
 };
 
 #endif /* FusionEKF_H_ */
