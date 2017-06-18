@@ -51,7 +51,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
     cout << "EKF: " << endl;
 
     ekf_.x_ = initialisePositionVelocity(measurement_pack);
-    ekf_.P_ = initialiseTransitionStateMatrixPWithCovariance(1000);
+    ekf_.P_ = initialiseTransitionStateMatrixPWithCovariance(1000.0);
     updateLocalTimestamp(measurement_pack);
 
     is_initialized_ = true;
@@ -67,8 +67,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
   ekf_.F_ = createTransitionMatrixFWithElapsedTime(elapsedTime);
 
-  int noise_ax = 9;
-  int noise_ay = 9;
+  float noise_ax = 9.0;
+  float noise_ay = 9.0;
   ekf_.Q_ = createProcessNoiseMatrixQwith(elapsedTime, noise_ax, noise_ay);
 
   ekf_.Predict();
@@ -125,7 +125,7 @@ VectorXd FusionEKF::initialisePositionVelocity(const MeasurementPackage &measure
   return x;
 }
 
-MatrixXd FusionEKF::initialiseTransitionStateMatrixPWithCovariance(int covariance) {
+MatrixXd FusionEKF::initialiseTransitionStateMatrixPWithCovariance(float covariance) {
   MatrixXd P = MatrixXd(4, 4);
   P << covariance, 0, 0, 0,
         0, covariance, 0, 0,
@@ -152,7 +152,7 @@ MatrixXd FusionEKF::createTransitionMatrixFWithElapsedTime(float elapsedTime) {
   return F;
 }
 
-MatrixXd FusionEKF::createProcessNoiseMatrixQwith(float elapsedTime, int noise_ax, int noise_ay) {
+MatrixXd FusionEKF::createProcessNoiseMatrixQwith(float elapsedTime, float noise_ax, float noise_ay) {
   float elapsedTime_power_2 = elapsedTime * elapsedTime;
   float elapsedTime_power_3 = elapsedTime_power_2 * elapsedTime;
   float elapsedTime_power_4 = elapsedTime_power_3 * elapsedTime;
