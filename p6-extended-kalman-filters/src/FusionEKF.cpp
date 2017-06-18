@@ -50,49 +50,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   if (!is_initialized_) {
     cout << "EKF: " << endl;
 
-    // Initialise position and velocity
-
-    ekf_.x_ = VectorXd(4);
-
-    float position_x = 1;
-    float position_y = 1;
-    float velocity_x = 1;
-    float velocity_y = 1;
-
-    if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
-      /**
-       Convert radar from polar to cartesian coordinates and initialize state.
-       */
-      float horizontal_projection = cos(measurement_pack.raw_measurements_[1]);
-      float vertical_projection = sin(measurement_pack.raw_measurements_[1]);
-
-      position_x = measurement_pack.raw_measurements_[0] * horizontal_projection;
-      position_y = measurement_pack.raw_measurements_[0] * vertical_projection;
-      velocity_x = measurement_pack.raw_measurements_[2] * horizontal_projection;
-      velocity_y = measurement_pack.raw_measurements_[2] * vertical_projection;
-    } else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
-      position_x = measurement_pack.raw_measurements_[0];
-      position_y = measurement_pack.raw_measurements_[1];
-    }
-
-    if (position_x == 0) position_x = 0.0001;
-    if (position_y == 0) position_y = 0.0001;
-
-    ekf_.x_ << position_x, position_y, velocity_x, velocity_y;
-
-    cout << "EKF init: " << ekf_.x_ << endl;
-
-    // Initialise transition state with hight uncertainty covariance matrix P
-
-    ekf_.P_ = MatrixXd(4, 4);
-    ekf_.P_ << 1000, 0, 0, 0,
-                0, 1000, 0, 0,
-                0, 0, 1000, 0,
-                0, 0, 0, 1000;
-
-
-    // Initialise timestamp
-
+    initialisePositionVelocity(measurement_pack);
+    initialiseTransitionStateMatrixPWithCovariance(1000);
     previous_timestamp_ = measurement_pack.timestamp_;
 
     is_initialized_ = true;
@@ -132,4 +91,42 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   // print the output
   cout << "x_ = " << ekf_.x_ << endl;
   cout << "P_ = " << ekf_.P_ << endl;
+}
+
+void FusionEKF::initialisePositionVelocity(const MeasurementPackage &measurement_pack) {
+  ekf_.x_ = VectorXd(4);
+
+  float position_x = 1;
+  float position_y = 1;
+  float velocity_x = 1;
+  float velocity_y = 1;
+
+  if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+    /**
+     Convert radar from polar to cartesian coordinates and initialize state.
+     */
+    float horizontal_projection = cos(measurement_pack.raw_measurements_[1]);
+    float vertical_projection = sin(measurement_pack.raw_measurements_[1]);
+
+    position_x = measurement_pack.raw_measurements_[0] * horizontal_projection;
+    position_y = measurement_pack.raw_measurements_[0] * vertical_projection;
+    velocity_x = measurement_pack.raw_measurements_[2] * horizontal_projection;
+    velocity_y = measurement_pack.raw_measurements_[2] * vertical_projection;
+  } else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
+    position_x = measurement_pack.raw_measurements_[0];
+    position_y = measurement_pack.raw_measurements_[1];
+  }
+
+  if (position_x == 0) position_x = 0.0001;
+  if (position_y == 0) position_y = 0.0001;
+
+  ekf_.x_ << position_x, position_y, velocity_x, velocity_y;
+}
+
+void FusionEKF::initialiseTransitionStateMatrixPWithCovariance(int covariance) {
+  ekf_.P_ = MatrixXd(4, 4);
+  ekf_.P_ << covariance, 0, 0, 0,
+              0, covariance, 0, 0,
+              0, 0, covariance, 0,
+              0, 0, 0, covariance;
 }

@@ -44,6 +44,9 @@ private:
   Eigen::MatrixXd R_radar_;
   Eigen::MatrixXd H_laser_;
   Eigen::MatrixXd Hj_;
+
+  void initialisePositionVelocity(const MeasurementPackage &measurement_pack);
+  void initialiseTransitionStateMatrixPWithCovariance(int covariance);
 };
 
 #endif /* FusionEKF_H_ */
