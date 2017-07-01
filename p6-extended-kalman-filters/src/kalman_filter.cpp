@@ -40,12 +40,24 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
 
   VectorXd h_x = VectorXd(3);
   float range = sqrt(px*px + py*py);
-  float angle = atan(py / px);
+  float angle = atan2(py, px);
   float radial_velocity = (px*vx + py*vy) / range;
   h_x << range, angle, radial_velocity;
 
   VectorXd y = z - h_x;
+
+  normaliseAngleIn(y);
   updateStateAndTransitionState(y);
+}
+
+void KalmanFilter::normaliseAngleIn(VectorXd &y) {
+  while (y(1) < - M_PI) {
+    y(1) += 2 * M_PI;
+  }
+
+  while (y(1) > M_PI) {
+    y(1) -= 2 * M_PI;
+  }
 }
 
 void KalmanFilter::updateStateAndTransitionState(const VectorXd &y) {

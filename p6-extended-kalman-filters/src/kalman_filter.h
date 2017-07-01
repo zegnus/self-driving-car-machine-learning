@@ -68,6 +68,8 @@ public:
 private:
   void updateStateAndTransitionState(const Eigen::VectorXd &y);
 
+  void normaliseAngleIn(Eigen::VectorXd &y);
+
 };
 
 #endif /* KALMAN_FILTER_H_ */
