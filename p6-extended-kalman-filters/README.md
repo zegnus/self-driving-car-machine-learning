@@ -1,120 +1,123 @@
-# Extended Kalman Filter Project Starter Code
-Self-Driving Car Engineer Nanodegree Program
+# Extended Kalman Filter Project
 
-In this project utilize a kalman filter to estimate the state of a moving object of interest with noisy lidar and radar measurements. Passing the project requires obtaining RMSE values that are lower that the tolerance outlined in the project reburic. 
+The source code of this project can be found in [github](https://github.com/zegnus/self-driving-car-machine-learning/tree/master/p6-extended-kalman-filters)
 
-This project involves the Term 2 Simulator which can be downloaded [here](https://github.com/udacity/self-driving-car-sim/releases)
+The objective of this project is to build an Extended Kalman Filter that will estimate a moving object with noisy lidar and radar measurements.
 
-This repository includes two files that can be used to set up and intall [uWebSocketIO](https://github.com/uWebSockets/uWebSockets) for either Linux or Mac systems. For windows you can use either Docker, VMware, or even [Windows 10 Bash on Ubuntu](https://www.howtogeek.com/249966/how-to-install-and-use-the-linux-bash-shell-on-windows-10/) to install uWebSocketIO. 
+We are provided by a data file that contains lidar and radar measurements in the directory `/data`.
 
-Once the install for uWebSocketIO is complete, the main program can be built and ran by doing the following from the project top directory.
+We can also run the predictions with the provided [simulator](https://github.com/udacity/self-driving-car-sim/releases) that will connect through [Websocket](https://github.com/uWebSockets/uWebSockets) to our program, will provide the measurements to our program and we will provide the results back to the simulator.
 
-1. mkdir build
-2. cd build
-3. cmake ..
-4. make
-5. ./ExtendedKF
+# Projet set-up
 
-Note that the programs that need to be written to accomplish the project are src/FusionEKF.cpp, src/FusionEKF.h, kalman_filter.cpp, kalman_fitler.h, tools.cpp, and tools.h
+The project is written in c++ and has the following dependencies for linux:
+- cmake >= 3.5
+- make >= 4.1
+- gcc/g++ >= 5.4
 
-The program main.cpp has already been filled out, but feel free to modify it.
+There is also provided an installation script for mac and linux at `./install-ubuntu.sh` and `/.install-mac.sh` that will install websocket and other dependencies. Be aware of the websocket dependencies if you have conda with websocket installed in it, as the soft links might cause a conflict.
 
-Here is the main protcol that main.cpp uses for uWebSocketIO in communicating with the simulator.
+# How to execute the project
 
+## Command line
 
-INPUT: values provided by the simulator to the c++ program
+Follow this commands once you have the simulator running:
+```
+cd build
+cmake .. 
+make
+./ExtendedKF
+```
 
-["sensor_measurement"] => the measurment that the simulator observed (either lidar or radar)
+## Using an IDE
 
+We can set-up easely [Eclipse](https://eclipse.org/cdt/) (and others) following the instructions under `./ide_profiles/Eclipse/` and [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html)
 
-OUTPUT: values provided by the c++ program to the simulator
+# Algorithm description and steps
 
-["estimate_x"] <= kalman filter estimated position x
-["estimate_y"] <= kalman filter estimated position y
-["rmse_x"]
-["rmse_y"]
-["rmse_vx"]
-["rmse_vy"]
+The algorithm will calculate and update the matrices involved in the Kalman and Extended Kalman Filter, initialise the values on first measurement, prevent divisions by zero and provide a Root Mean Square Error of our results.
 
----
+The matrices involved are the following:
+**P**: transition state uncertainty covariance matrix
+**F**: transition state matrix
+**Q**: process prediction uncertainty covariance matrix
+**H**: measurement matrix that will remove the velocity from the measurement for Lidar
+**R**: measurement uncertainty covariance matrix, provided by the sensor manufacturer
 
-## Other Important Dependencies
+## Telemetry input
+We will get a telemetry measurement that will contain data from Lidar or Radar, and also the timestamp of the measurement
+    * For Lidar we will get the position (x and y)
+    * For Radar we will get polar coordinates (range, bearing and radial velocity)
 
-* cmake >= 3.5
- * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
+## Initialisation
+We will then initialise the position and velocity from the measurement, the transition matrix, the covariance and the timestamp. In case of the radar we will have to convert the polar coordinates to cartesian in order to use the same calculations on both measurements:
+```
+VectorXd FusionEKF::initialisePositionVelocity(const MeasurementPackage &measurement_pack) {
+  VectorXd x = VectorXd(4);
 
-## Basic Build Instructions
+  float position_x = 1;
+  float position_y = 1;
+  float velocity_x = 1;
+  float velocity_y = 1;
 
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make` 
-   * On windows, you may need to run: `cmake .. -G "Unix Makefiles" && make`
-4. Run it: `./ExtendedKF path/to/input.txt path/to/output.txt`. You can find
-   some sample inputs in 'data/'.
-    - eg. `./ExtendedKF ../data/obj_pose-laser-radar-synthetic-input.txt`
+  if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+    /**
+     Convert radar from polar to cartesian coordinates and initialize state.
+     */
+    float horizontal_projection = cos(measurement_pack.raw_measurements_[1]);
+    float vertical_projection = sin(measurement_pack.raw_measurements_[1]);
 
-## Editor Settings
+    position_x = measurement_pack.raw_measurements_[0] * horizontal_projection;
+    position_y = measurement_pack.raw_measurements_[0] * vertical_projection;
+    velocity_x = measurement_pack.raw_measurements_[2] * horizontal_projection;
+    velocity_y = measurement_pack.raw_measurements_[2] * vertical_projection;
+  } else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
+    position_x = measurement_pack.raw_measurements_[0];
+    position_y = measurement_pack.raw_measurements_[1];
+  }
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
+  if (fabs(position_x) < 0.0001) position_x = 0.0001;
+  if (fabs(position_y) < 0.0001) position_y = 0.0001;
 
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
+  x << position_x, position_y, velocity_x, velocity_y;
+  return x;
+}
+```
 
-## Code Style
+## Prediction
+On the following measurement we will update the transition matrix `F` and the process transition noise matrix `Q` with the new timestamp and a provided noise value of 9.0f and then will make a prediction updating the position matrix `x = F * x` and the transition matrix `P = F * P * F_trans + Q`
 
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
+```
+MatrixXd FusionEKF::createProcessNoiseMatrixQwith(float elapsedTime, float noise_ax, float noise_ay) {
+  float elapsedTime_power_2 = elapsedTime * elapsedTime;
+  float elapsedTime_power_3 = elapsedTime_power_2 * elapsedTime;
+  float elapsedTime_power_4 = elapsedTime_power_3 * elapsedTime;
 
-## Generating Additional Data
+  float elapsedTime_power_4_divided_by_4 = elapsedTime_power_4 / 4;
+  float elapsedtime_power_3_divided_by_2 = elapsedTime_power_3 / 2;
 
-This is optional!
+  MatrixXd Q = MatrixXd(4, 4);
+  Q << elapsedTime_power_4_divided_by_4 * noise_ax, 0, elapsedtime_power_3_divided_by_2 * noise_ax, 0,
+        0, elapsedTime_power_4_divided_by_4 * noise_ay, 0, elapsedtime_power_3_divided_by_2 * noise_ay,
+        elapsedtime_power_3_divided_by_2 * noise_ax, 0, elapsedTime_power_2 * noise_ax, 0,
+        0, elapsedtime_power_3_divided_by_2 * noise_ay, 0, elapsedTime_power_2 * noise_ay;
+  return Q;
+}
+```
 
-If you'd like to generate your own radar and lidar data, see the
-[utilities repo](https://github.com/udacity/CarND-Mercedes-SF-Utilities) for
-Matlab scripts that can generate additional data.
+## Update
+We will then make an update considering the measurement error covariance for Lidar or Radar, and also calculating the measurement matrix `H` through the `Jacobian` for the Radar measurement, and the `Identity` for x and y for the Lidar measurement.
+ * Lidar update will use `y = z - (H * x)`
+ * Radar update will calculate `y = z - H(x)_jacobian` by which `H(x) = range, angle and radial velocity` calculated from the cartesian input. We will also normalise the angle component of `y` to be between `-pi, +pi`
 
-## Project Instructions and Rubric
+Finally we will update the position matrix:
+```
+S = H * P * Ht + R)
+K = P * H_trans * S_inverse
+x = x + (K * y)
+```
 
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project resources page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/382ebfd6-1d55-4487-84a5-b6a5a4ba1e47)
-for instructions and the project rubric.
-
-## Hints!
-
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! We'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Regardless of the IDE used, every submitted project must
-still be compilable with cmake and make.
+And the transition matrix covariance:
+```
+P = (Identity_matrix - (K * H)) * P
+```
