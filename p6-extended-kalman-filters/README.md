@@ -15,7 +15,9 @@ The project is written in c++ and has the following dependencies for linux:
 - make >= 4.1
 - gcc/g++ >= 5.4
 
-There is also provided an installation script for mac and linux at `./install-ubuntu.sh` and `/.install-mac.sh` that will install websocket and other dependencies. Be aware of the websocket dependencies if you have conda with websocket installed in it, as the soft links might cause a conflict.
+There is also provided an installation script for mac and linux at `./install-ubuntu.sh` and `/.install-mac.sh` that will install websocket and other dependencies. 
+
+Be aware of the websocket dependencies if you have conda with websocket installed in it, as the soft links might cause a conflict.
 
 # How to execute the project
 
@@ -38,19 +40,27 @@ We can set-up easely [Eclipse](https://eclipse.org/cdt/) (and others) following 
 The algorithm will calculate and update the matrices involved in the Kalman and Extended Kalman Filter, initialise the values on first measurement, prevent divisions by zero and provide a Root Mean Square Error of our results.
 
 The matrices involved are the following:
+
 **P**: transition state uncertainty covariance matrix
+
 **F**: transition state matrix
+
 **Q**: process prediction uncertainty covariance matrix
+
 **H**: measurement matrix that will remove the velocity from the measurement for Lidar
+
 **R**: measurement uncertainty covariance matrix, provided by the sensor manufacturer
 
 ## Telemetry input
 We will get a telemetry measurement that will contain data from Lidar or Radar, and also the timestamp of the measurement
-    * For Lidar we will get the position (x and y)
-    * For Radar we will get polar coordinates (range, bearing and radial velocity)
+ * For Lidar we will get the position (x and y)
+ * For Radar we will get polar coordinates (range, bearing and radial velocity)
 
 ## Initialisation
-We will then initialise the position and velocity from the measurement, the transition matrix, the covariance and the timestamp. In case of the radar we will have to convert the polar coordinates to cartesian in order to use the same calculations on both measurements:
+We will then initialise the position and velocity from the measurement, the transition matrix, the covariance and the timestamp. 
+
+In case of the radar we will have to convert the polar coordinates to cartesian in order to use the same calculations on both measurements:
+
 ```
 VectorXd FusionEKF::initialisePositionVelocity(const MeasurementPackage &measurement_pack) {
   VectorXd x = VectorXd(4);
