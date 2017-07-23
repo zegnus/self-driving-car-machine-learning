@@ -29,10 +29,10 @@ public:
   MatrixXd P_;
 
   ///* predicted sigma points matrix
-  MatrixXd Xsig_pred_;
+  MatrixXd x_sigma_points_predicted;
 
   ///* time when the state is true, in us
-  long long time_us_;
+  float previous_timestamp_;
 
   ///* Process noise standard deviation longitudinal acceleration in m/s^2
   double std_a_;
@@ -88,7 +88,7 @@ public:
    * matrix
    * @param delta_t Time between k and k+1 in s
    */
-  void Prediction(double delta_t);
+  void Prediction(float delta_t);
 
   /**
    * Updates the state and the state covariance matrix using a laser measurement
@@ -101,6 +101,24 @@ public:
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
+
+private:
+
+  void updateLocalTimestamp(const MeasurementPackage meas_package);
+  float calculateElapsedTime(const MeasurementPackage meas_package);
+  VectorXd InitialiseStateVector(const MeasurementPackage meas_package);
+  MatrixXd InitialiseCovarianceMatrix(float covariance);
+  MatrixXd GenerateSigmaPoints();
+  VectorXd GeneratedAugmentedState();
+  MatrixXd GenerateAugmentedCovarianceMatrix();
+  MatrixXd GenerateAugmentedSigmaPoints(const VectorXd x_augmented,
+                                        const MatrixXd P_augmented);
+  MatrixXd PredictSigmaPoints(const MatrixXd x_sigma_points_augmented,
+                              double delta_t);
+  VectorXd PredictStateVector(const MatrixXd x_sigma_points_predicted);
+  MatrixXd PredictCovarianceMatrix(const VectorXd x,
+                                   const MatrixXd x_sigma_points_predicted);
+
 };
 
 #endif /* UKF_H */

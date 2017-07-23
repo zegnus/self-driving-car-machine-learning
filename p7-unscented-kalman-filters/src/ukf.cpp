@@ -44,13 +44,27 @@ UKF::UKF() {
   // Radar measurement noise standard deviation radius change in m/s
   std_radrd_ = 0.3;
 
-  /**
-   TODO:
+  is_initialized_ = false;
 
-   Complete the initialization. See ukf.h for other member properties.
+  n_x_ = 5; // state vector dimension
 
-   Hint: one or more values initialized above might be wildly off...
-   */
+  n_aug_ = 7; // augmented state vector dimension
+
+  lambda_ = 3 - n_aug_;
+
+  x_sigma_points_predicted = MatrixXd(n_x_, 2 * n_aug_ + 1);
+
+  previous_timestamp_ = 0;
+
+  // initialise weights
+
+  weights_ = VectorXd(2 * n_aug_ + 1);
+  double weight_0 = lambda_ / (lambda_ + n_aug_);
+  weights_(0) = weight_0;
+  for (int i = 1; i < 2 * n_aug_ + 1; i++) { //2n+1 weights
+    double weight = 0.5 / (n_aug_ + lambda_);
+    weights_(i) = weight;
+  }
 }
 
 UKF::~UKF() {
@@ -61,12 +75,84 @@ UKF::~UKF() {
  * either radar or laser.
  */
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
-  /**
-   TODO:
+  // initialise if necessary
+  if (!is_initialized_) {
+    cout << "Initialise Unscented Kalman Filter" << endl;
 
-   Complete this function! Make sure you switch between lidar and radar
-   measurements.
-   */
+    x_ = InitialiseStateVector(meas_package);
+    P_ = InitialiseCovarianceMatrix(1000.0);
+
+    updateLocalTimestamp(meas_package);
+    is_initialized_ = true;
+    return;
+  }
+
+  float delta_t = calculateElapsedTime(meas_package);
+  updateLocalTimestamp(meas_package);
+
+  // prediction
+  Prediction(delta_t);
+
+  // update
+  if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+    UpdateRadar(meas_package);
+  } else {
+    UpdateLidar(meas_package);
+  }
+}
+
+void UKF::updateLocalTimestamp(const MeasurementPackage meas_package) {
+  previous_timestamp_ = meas_package.timestamp_;
+}
+
+float UKF::calculateElapsedTime(const MeasurementPackage meas_package) {
+  float elapsedTime = meas_package.timestamp_ - previous_timestamp_;
+  return elapsedTime / 1000000.0; // in seconds
+}
+
+VectorXd UKF::InitialiseStateVector(const MeasurementPackage meas_package) {
+  VectorXd x = VectorXd(5);
+
+  float position_x = 1;
+  float position_y = 1;
+  float velocity_absolute = 1;
+  float yaw_angle = 1;
+  float yaw_rate = 1;
+
+  if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+    /**
+     Convert radar from polar to cartesian coordinates and initialize state.
+     */
+    float horizontal_projection = cos(meas_package.raw_measurements_[1]);
+    float vertical_projection = sin(meas_package.raw_measurements_[1]);
+
+    position_x = meas_package.raw_measurements_[0] * horizontal_projection;
+    position_y = meas_package.raw_measurements_[0] * vertical_projection;
+    float velocity_x = meas_package.raw_measurements_[2] * horizontal_projection;
+    float velocity_y = meas_package.raw_measurements_[2] * vertical_projection;
+    velocity_absolute = sqrt(velocity_x * velocity_x + velocity_y * velocity_y);
+  } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+    position_x = meas_package.raw_measurements_[0];
+    position_y = meas_package.raw_measurements_[1];
+  }
+
+  if (fabs(position_x) < 0.0001) position_x = 0.0001;
+  if (fabs(position_y) < 0.0001) position_y = 0.0001;
+
+  x << position_x, position_y, velocity_absolute, yaw_angle, yaw_rate;
+  return x;
+}
+
+MatrixXd UKF::InitialiseCovarianceMatrix(float covariance) {
+  MatrixXd P = MatrixXd(5, 5);
+
+  P << covariance, 0, 0, 0, 0,
+      0, covariance, 0, 0, 0,
+      0, 0, covariance, 0, 0,
+      0, 0, 0, covariance, 0,
+      0, 0, 0, 0, covariance;
+
+  return P;
 }
 
 /**
@@ -74,13 +160,146 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
  * @param {double} delta_t the change in time (in seconds) between the last
  * measurement and this one.
  */
-void UKF::Prediction(double delta_t) {
-  /**
-   TODO:
+void UKF::Prediction(float delta_t) {
+  VectorXd x_augmented = GeneratedAugmentedState();
+  MatrixXd P_augmented = GenerateAugmentedCovarianceMatrix();
+  MatrixXd x_sigma_points_augmented = GenerateAugmentedSigmaPoints(x_augmented,
+                                                                   P_augmented);
 
-   Complete this function! Estimate the object's location. Modify the state
-   vector, x_. Predict sigma points, the state, and the state covariance matrix.
-   */
+  x_sigma_points_predicted = PredictSigmaPoints(x_sigma_points_augmented,
+                                                delta_t);
+
+  x_ = PredictStateVector(x_sigma_points_predicted);
+  P_ = PredictCovarianceMatrix(x_, x_sigma_points_predicted);
+}
+
+VectorXd UKF::GeneratedAugmentedState() {
+  VectorXd x_augmented = VectorXd(n_aug_);
+
+  x_augmented.head(5) = x_;
+  x_augmented(5) = 0;
+  x_augmented(6) = 0;
+
+  return x_augmented;
+}
+
+MatrixXd UKF::GenerateAugmentedCovarianceMatrix() {
+  MatrixXd P_augmented = MatrixXd(n_aug_, n_aug_);
+
+  P_augmented.fill(0.0);
+  P_augmented.topLeftCorner(5, 5) = P_;
+  P_augmented(5, 5) = std_a_ * std_a_;
+  P_augmented(6, 6) = std_yawdd_ * std_yawdd_;
+
+  return P_augmented;
+}
+
+MatrixXd UKF::GenerateAugmentedSigmaPoints(const VectorXd x_augmented,
+                                           const MatrixXd P_augmented) {
+  MatrixXd x_sigma_points_augmented = MatrixXd(n_aug_, 2 * n_aug_ + 1);
+
+  MatrixXd L = P_augmented.llt().matrixL(); // square root matrix
+
+  x_sigma_points_augmented.col(0) = x_augmented;
+
+  for (int i = 0; i < n_aug_; i++) {
+    MatrixXd value = sqrt(lambda_ + n_aug_) * L.col(i);
+    x_sigma_points_augmented.col(i + 1) = x_augmented + value;
+    x_sigma_points_augmented.col(i + 1 + n_aug_) = x_augmented - value;
+  }
+
+  return x_sigma_points_augmented;
+}
+
+MatrixXd UKF::PredictSigmaPoints(const MatrixXd x_sigma_points_augmented,
+                                 double delta_t) {
+  MatrixXd x_sigma_points_predicted = MatrixXd(n_x_, 2 * n_aug_ + 1);
+
+  // [0] -> position x
+  // [1] -> position y
+  // [2] -> velocity
+  // [3] -> yaw angle [yaw]
+  // [4] -> yaw rate
+  // [5] -> longitudinal acceleration noise [nu_acceleration]
+  // [6] -> yaw acceleration noise [nu_yaw_acceleration]
+
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) {
+    //extract values for better readability
+    double p_x = x_sigma_points_augmented(0, i);
+    double p_y = x_sigma_points_augmented(1, i);
+    double v = x_sigma_points_augmented(2, i);
+    double yaw = x_sigma_points_augmented(3, i);
+    double yawd = x_sigma_points_augmented(4, i);
+    double nu_a = x_sigma_points_augmented(5, i);
+    double nu_yawdd = x_sigma_points_augmented(6, i);
+
+    //predicted state values
+    double px_p, py_p;
+
+    //avoid division by zero
+    if (fabs(yawd) > 0.001) {
+      px_p = p_x + v / yawd * (sin(yaw + yawd * delta_t) - sin(yaw));
+      py_p = p_y + v / yawd * (cos(yaw) - cos(yaw + yawd * delta_t));
+    } else {
+      px_p = p_x + v * delta_t * cos(yaw);
+      py_p = p_y + v * delta_t * sin(yaw);
+    }
+
+    double v_p = v;
+    double yaw_p = yaw + yawd * delta_t;
+    double yawd_p = yawd;
+
+    //add noise
+    px_p = px_p + 0.5 * nu_a * delta_t * delta_t * cos(yaw);
+    py_p = py_p + 0.5 * nu_a * delta_t * delta_t * sin(yaw);
+    v_p = v_p + nu_a * delta_t;
+
+    yaw_p = yaw_p + 0.5 * nu_yawdd * delta_t * delta_t;
+    yawd_p = yawd_p + nu_yawdd * delta_t;
+
+    //write predicted sigma point into right column
+    x_sigma_points_predicted(0, i) = px_p;
+    x_sigma_points_predicted(1, i) = py_p;
+    x_sigma_points_predicted(2, i) = v_p;
+    x_sigma_points_predicted(3, i) = yaw_p;
+    x_sigma_points_predicted(4, i) = yawd_p;
+  }
+
+  return x_sigma_points_predicted;
+}
+
+VectorXd UKF::PredictStateVector(const MatrixXd x_sigma_points_predicted) {
+  VectorXd x = VectorXd(n_x_);
+
+  x.fill(0.0);
+
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) { //iterate over sigma points
+    x = x + weights_(i) * x_sigma_points_predicted.col(i);
+  }
+
+  return x;
+}
+
+MatrixXd UKF::PredictCovarianceMatrix(const VectorXd x,
+                                      const MatrixXd x_sigma_points_predicted) {
+  MatrixXd P = MatrixXd(n_x_, n_x_);
+
+  P.fill(0.0);
+
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) { //iterate over sigma points
+
+    // state difference
+    VectorXd x_diff = x_sigma_points_predicted.col(i) - x;
+    //angle normalisation
+    while (x_diff(3) > M_PI)
+      x_diff(3) -= 2. * M_PI;
+    while (x_diff(3) < -M_PI)
+      x_diff(3) += 2. * M_PI;
+
+    P = P + weights_(i) * x_diff * x_diff.transpose();
+  }
+
+  return P;
 }
 
 /**

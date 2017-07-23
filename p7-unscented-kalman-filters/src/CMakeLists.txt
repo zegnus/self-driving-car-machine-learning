@@ -1,4 +1,4 @@
-project(Unscented_Kakman_Filter)
+project(Unscented_Kalman_Filter)
 
 cmake_minimum_required (VERSION 3.5)
 
