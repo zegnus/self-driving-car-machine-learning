@@ -48,6 +48,8 @@ UKF::UKF() {
 
   n_x_ = 5; // state vector dimension
 
+  n_radar_ = 3; // radar state vector dimension
+
   n_aug_ = 7; // augmented state vector dimension
 
   lambda_ = 3 - n_aug_;
@@ -56,9 +58,18 @@ UKF::UKF() {
 
   previous_timestamp_ = 0;
 
+  NIS_radar_ = 0;
+
+  NIS_lidar_ = 0;
+
+  R_ = MatrixXd(n_radar_, n_radar_);
+
+  R_ << std_radr_ * std_radr_, 0, 0, 0, std_radphi_ * std_radphi_, 0, 0, 0, std_radrd_
+      * std_radrd_;
   // initialise weights
 
   weights_ = VectorXd(2 * n_aug_ + 1);
+
   double weight_0 = lambda_ / (lambda_ + n_aug_);
   weights_(0) = weight_0;
   for (int i = 1; i < 2 * n_aug_ + 1; i++) { //2n+1 weights
@@ -128,7 +139,8 @@ VectorXd UKF::InitialiseStateVector(const MeasurementPackage meas_package) {
 
     position_x = meas_package.raw_measurements_[0] * horizontal_projection;
     position_y = meas_package.raw_measurements_[0] * vertical_projection;
-    float velocity_x = meas_package.raw_measurements_[2] * horizontal_projection;
+    float velocity_x = meas_package.raw_measurements_[2]
+        * horizontal_projection;
     float velocity_y = meas_package.raw_measurements_[2] * vertical_projection;
     velocity_absolute = sqrt(velocity_x * velocity_x + velocity_y * velocity_y);
   } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
@@ -136,8 +148,10 @@ VectorXd UKF::InitialiseStateVector(const MeasurementPackage meas_package) {
     position_y = meas_package.raw_measurements_[1];
   }
 
-  if (fabs(position_x) < 0.0001) position_x = 0.0001;
-  if (fabs(position_y) < 0.0001) position_y = 0.0001;
+  if (fabs(position_x) < 0.0001)
+    position_x = 0.0001;
+  if (fabs(position_y) < 0.0001)
+    position_y = 0.0001;
 
   x << position_x, position_y, velocity_absolute, yaw_angle, yaw_rate;
   return x;
@@ -146,11 +160,7 @@ VectorXd UKF::InitialiseStateVector(const MeasurementPackage meas_package) {
 MatrixXd UKF::InitialiseCovarianceMatrix(float covariance) {
   MatrixXd P = MatrixXd(5, 5);
 
-  P << covariance, 0, 0, 0, 0,
-      0, covariance, 0, 0, 0,
-      0, 0, covariance, 0, 0,
-      0, 0, 0, covariance, 0,
-      0, 0, 0, 0, covariance;
+  P << covariance, 0, 0, 0, 0, 0, covariance, 0, 0, 0, 0, 0, covariance, 0, 0, 0, 0, 0, covariance, 0, 0, 0, 0, 0, covariance;
 
   return P;
 }
@@ -322,12 +332,130 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
-  /**
-   TODO:
+  // predict measurement
 
-   Complete this function! Use radar data to update the belief about the object's
-   position. Modify the state vector, x_, and covariance, P_.
+  MatrixXd z_sigma_points = TransformSigmaPointsToRadarSpace();
+  VectorXd z_predicted = PredictMean(z_sigma_points);
+  MatrixXd S = PredictCovarianceMatrix(z_sigma_points, z_predicted);
+  S = S + R_;
 
-   You'll also need to calculate the radar NIS.
-   */
+  // update state
+
+  MatrixXd T = CalculateCrossCorrelationMatrix(z_sigma_points, z_predicted,
+                                               x_sigma_points_predicted);
+  MatrixXd K = T * S.inverse(); // Kalman Gain
+
+  VectorXd z = VectorXd(n_radar_);
+  z << meas_package.raw_measurements_(0),
+      meas_package.raw_measurements_(1),
+      meas_package.raw_measurements_(2);
+
+  //residual
+  VectorXd z_diff = z - z_predicted;
+
+  //angle normalization
+  while (z_diff(1) > M_PI)
+    z_diff(1) -= 2. * M_PI;
+  while (z_diff(1) < -M_PI)
+    z_diff(1) += 2. * M_PI;
+
+  //update state mean and covariance matrix
+  x_ = x_ + K * z_diff;
+  P_ = P_ - K * S * K.transpose();
+
+  NIS_radar_ = z_diff.transpose() * S.inverse() * z_diff;
+}
+
+MatrixXd UKF::TransformSigmaPointsToRadarSpace() {
+  MatrixXd z_sigma_points = MatrixXd(n_radar_, 2 * n_aug_ + 1);
+
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) { //2n+1 simga points
+
+    // extract values for better readibility
+    double p_x = x_sigma_points_predicted(0, i);
+    double p_y = x_sigma_points_predicted(1, i);
+    double v = x_sigma_points_predicted(2, i);
+    double yaw = x_sigma_points_predicted(3, i);
+
+    if (fabs(p_x) < 0.0001)
+      p_x = 0.0001;
+    if (fabs(p_y) < 0.0001)
+      p_y = 0.0001;
+
+    double v1 = cos(yaw) * v;
+    double v2 = sin(yaw) * v;
+
+    // measurement model
+    z_sigma_points(0, i) = sqrt(p_x * p_x + p_y * p_y); //r
+    z_sigma_points(1, i) = atan2(p_y, p_x); //phi
+    z_sigma_points(2, i) = (p_x * v1 + p_y * v2) / sqrt(p_x * p_x + p_y * p_y); //r_dot
+  }
+
+  return z_sigma_points;
+}
+
+VectorXd UKF::PredictMean(const MatrixXd z_sigma_points) {
+  VectorXd z_predicted = VectorXd(n_radar_);
+
+  z_predicted.fill(0.0);
+
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) {
+    z_predicted = z_predicted + weights_(i) * z_sigma_points.col(i);
+  }
+
+  return z_predicted;
+}
+
+MatrixXd UKF::PredictCovarianceMatrix(const MatrixXd z_sigma_points,
+                                      const MatrixXd z_predicted) {
+  MatrixXd S = MatrixXd(n_radar_, n_radar_);
+
+  S.fill(0.0);
+
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) { //2n+1 simga points
+    //residual
+    VectorXd z_diff = z_sigma_points.col(i) - z_predicted;
+
+    //angle normalization
+    while (z_diff(1) > M_PI)
+      z_diff(1) -= 2. * M_PI;
+    while (z_diff(1) < -M_PI)
+      z_diff(1) += 2. * M_PI;
+
+    S = S + weights_(i) * z_diff * z_diff.transpose();
+  }
+
+  return S;
+}
+
+MatrixXd UKF::CalculateCrossCorrelationMatrix(
+                                              const MatrixXd z_sigma_points,
+                                              const MatrixXd z_predicted,
+                                              const MatrixXd x_sigma_points_predicted) {
+
+  MatrixXd T = MatrixXd(n_x_, n_radar_);
+
+  T.fill(0.0);
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) { //2n+1 simga points
+    //residual
+    VectorXd z_diff = z_sigma_points.col(i) - z_predicted;
+    //angle normalization
+    while (z_diff(1) > M_PI)
+      z_diff(1) -= 2. * M_PI;
+    while (z_diff(1) < -M_PI)
+      z_diff(1) += 2. * M_PI;
+
+    // state difference
+    VectorXd x_diff = x_sigma_points_predicted.col(i) - x_;
+    //angle normalization
+    while (x_diff(3) > M_PI)
+      x_diff(3) -= 2. * M_PI;
+    while (x_diff(3) < -M_PI)
+      x_diff(3) += 2. * M_PI;
+
+    T = T + weights_(i) * x_diff * z_diff.transpose();
+  }
+
+  return T;
+
 }

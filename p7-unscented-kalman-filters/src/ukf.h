@@ -28,6 +28,9 @@ public:
   ///* state covariance matrix
   MatrixXd P_;
 
+  ///* measurement noise covariance matrix
+  MatrixXd R_;
+
   ///* predicted sigma points matrix
   MatrixXd x_sigma_points_predicted;
 
@@ -66,6 +69,13 @@ public:
 
   ///* Sigma point spreading parameter
   double lambda_;
+
+  ///* Radar State dimension
+  int n_radar_;
+
+  double NIS_radar_;
+
+  double NIS_lidar_
 
   /**
    * Constructor
@@ -118,6 +128,13 @@ private:
   VectorXd PredictStateVector(const MatrixXd x_sigma_points_predicted);
   MatrixXd PredictCovarianceMatrix(const VectorXd x,
                                    const MatrixXd x_sigma_points_predicted);
+  MatrixXd TransformSigmaPointsToRadarSpace();
+  VectorXd PredictMean(const MatrixXd z_sigma_points);
+  MatrixXd PredictCovarianceMatrix(const MatrixXd z_sigma_points,
+                                   const MatrixXd z_predicted);
+  MatrixXd CalculateCrossCorrelationMatrix(const MatrixXd z_sigma_points,
+                                           const MatrixXd z_predicted,
+                                           const MatrixXd x_sigma_points_predicted);
 
 };
 
