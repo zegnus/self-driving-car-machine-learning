@@ -35,7 +35,7 @@ public:
   MatrixXd R_lidar_;
 
   ///* predicted sigma points matrix
-  MatrixXd x_sigma_points_predicted;
+  MatrixXd x_sigma_points_predicted_;
 
   ///* time when the state is true, in us
   long previous_timestamp_;
@@ -130,9 +130,9 @@ private:
   MatrixXd GenerateAugmentedCovarianceMatrix();
   MatrixXd GenerateAugmentedSigmaPoints(const VectorXd x_augmented,
                                         const MatrixXd P_augmented);
-  MatrixXd PredictSigmaPoints(const MatrixXd x_sigma_points_augmented,
-                              float delta_t);
-  void PredictStateAndCovariance(const MatrixXd x_sigma_points_predicted);
+  void PredictSigmaPoints(const MatrixXd x_sigma_points_augmented,
+                          const float delta_t);
+  void PredictStateAndCovariance();
   MatrixXd
   PredictRadarCovarianceMatrix(const MatrixXd z_sigma_points,
                                const MatrixXd z_predicted);
@@ -145,12 +145,10 @@ private:
   VectorXd PredictMean(const MatrixXd z_sigma_points, VectorXd &z_predicted);
   MatrixXd
   CalculateRadarCrossCorrelationMatrix(const MatrixXd z_sigma_points,
-                                       const MatrixXd z_predicted,
-                                       const MatrixXd x_sigma_points_predicted);
+                                       const MatrixXd z_predicted);
   MatrixXd
   CalculateLidarCrossCorrelationMatrix(const MatrixXd z_sigma_points,
-                                       const MatrixXd z_predicted,
-                                       const MatrixXd x_sigma_points_predicted);
+                                       const MatrixXd z_predicted);
 
 };
 
