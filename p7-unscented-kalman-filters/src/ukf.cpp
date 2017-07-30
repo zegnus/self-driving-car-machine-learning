@@ -58,7 +58,7 @@ UKF::UKF() {
 
   x_sigma_points_predicted_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
 
-  previous_timestamp_ = 0;
+  previous_timestamp_ = 0.5;
 
   NIS_radar_ = 0;
 
@@ -79,7 +79,7 @@ UKF::UKF() {
 
   double weight_0 = lambda_ / (lambda_ + n_aug_);
   weights_(0) = weight_0;
-  for (int i = 1; i < 2 * n_aug_ + 1; i++) { //2n+1 weights
+  for (int i = 1; i < 2 * n_aug_ + 1; i++) {  //2n+1 weights
     double weight = 0.5 / (n_aug_ + lambda_);
     weights_(i) = weight;
   }
@@ -93,14 +93,12 @@ UKF::~UKF() {
  * either radar or laser.
  */
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
-  cout << "ProcessMeasurement" << endl;
-
   // initialise if necessary
   if (!is_initialized_) {
     cout << "Initialise Unscented Kalman Filter" << endl;
 
-    x_ = InitialiseStateVector(meas_package);
-    P_ = InitialiseCovarianceMatrix(1);
+    InitialiseStateVector(meas_package);
+    InitialiseCovarianceMatrix(1);
 
     updateLocalTimestamp(meas_package);
     is_initialized_ = true;
@@ -114,21 +112,15 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   cout << "delta_t" << endl;
   cout << delta_t << endl;
 
-  cout << "Prediction" << endl;
-
   // prediction
   Prediction(delta_t);
 
   // update
   if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-    cout << "UpdateRadar" << endl;
     UpdateRadar(meas_package);
   } else {
-    cout << "UpdateLidar" << endl;
-    UpdateLidar(meas_package);
+    //UpdateLidar(meas_package);
   }
-
-  cout << "end" << endl;
 }
 
 void UKF::updateLocalTimestamp(const MeasurementPackage meas_package) {
@@ -140,9 +132,7 @@ float UKF::calculateElapsedTime(const MeasurementPackage meas_package) {
   return elapsedTime / 1000000.0; // in seconds
 }
 
-VectorXd UKF::InitialiseStateVector(const MeasurementPackage meas_package) {
-  VectorXd x = VectorXd(5);
-
+void UKF::InitialiseStateVector(const MeasurementPackage meas_package) {
   float position_x = 1;
   float position_y = 1;
   float velocity_absolute = 1;
@@ -158,6 +148,7 @@ VectorXd UKF::InitialiseStateVector(const MeasurementPackage meas_package) {
 
     position_x = meas_package.raw_measurements_[0] * horizontal_projection;
     position_y = meas_package.raw_measurements_[0] * vertical_projection;
+
     float velocity_x = meas_package.raw_measurements_[2] * horizontal_projection;
     float velocity_y = meas_package.raw_measurements_[2] * vertical_projection;
     velocity_absolute = sqrt(velocity_x * velocity_x + velocity_y * velocity_y);
@@ -169,20 +160,15 @@ VectorXd UKF::InitialiseStateVector(const MeasurementPackage meas_package) {
   if (fabs(position_x) < 0.0001) position_x = 0.0001;
   if (fabs(position_y) < 0.0001) position_y = 0.0001;
 
-  x << position_x, position_y, velocity_absolute, yaw_angle, yaw_rate;
-  return x;
+  x_ << position_x, position_y, velocity_absolute, yaw_angle, yaw_rate;
 }
 
-MatrixXd UKF::InitialiseCovarianceMatrix(float covariance) {
-  MatrixXd P = MatrixXd(5, 5);
-
-  P <<  covariance, 0, 0, 0, 0,
+void UKF::InitialiseCovarianceMatrix(float covariance) {
+  P_ <<  covariance, 0, 0, 0, 0,
         0, covariance, 0, 0, 0,
         0, 0, covariance, 0, 0,
         0, 0, 0, covariance, 0,
         0, 0, 0, 0, covariance;
-
-  return P;
 }
 
 /**

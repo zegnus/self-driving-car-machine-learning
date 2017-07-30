@@ -122,8 +122,8 @@ private:
 
   void updateLocalTimestamp(const MeasurementPackage meas_package);
   float calculateElapsedTime(const MeasurementPackage meas_package);
-  VectorXd InitialiseStateVector(const MeasurementPackage meas_package);
-  MatrixXd InitialiseCovarianceMatrix(float covariance);
+  void InitialiseStateVector(const MeasurementPackage meas_package);
+  void InitialiseCovarianceMatrix(float covariance);
   void normaliseAngleIn(double *angle);
   MatrixXd GenerateSigmaPoints();
   VectorXd GeneratedAugmentedState();
