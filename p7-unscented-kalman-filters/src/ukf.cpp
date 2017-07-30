@@ -191,11 +191,8 @@ void UKF::Prediction(float delta_t) {
 
   // x_ = PredictStateVector(x_sigma_points_predicted_);
 
-  cout << "x_: " << x_ << endl ;
 
   // P_ = PredictCovarianceMatrix(x_, x_sigma_points_predicted_);
-
-  cout << "P_: " << P_ << endl;
 
   cout << "end prediction" << endl;
 
@@ -204,8 +201,9 @@ void UKF::Prediction(float delta_t) {
 VectorXd UKF::GeneratedAugmentedState() {
   VectorXd x_augmented = VectorXd(n_aug_);
 
-  x_augmented.fill(0.0);
-  x_augmented.head(n_x_) = x_;
+  x_augmented.head(5) = x_;
+  x_augmented(5) = 0;
+  x_augmented(6) = 0;
 
   return x_augmented;
 }
@@ -352,10 +350,17 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
+  VectorXd z = VectorXd(n_radar_);
+  z <<  meas_package.raw_measurements_(0),
+        meas_package.raw_measurements_(1),
+        meas_package.raw_measurements_(2);
+
   MatrixXd z_sigma_points = TransformSigmaPointsToRadarSpace();
 
   VectorXd z_predicted = VectorXd(n_radar_);
   z_predicted = PredictMean(z_sigma_points, z_predicted);
+
+  cout << "z_predicted" << z_predicted << endl;
 
   MatrixXd S = PredictRadarCovarianceMatrix(z_sigma_points, z_predicted);
   S = S + R_radar_;
@@ -363,11 +368,6 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   MatrixXd T = CalculateRadarCrossCorrelationMatrix(z_sigma_points,
                                                     z_predicted);
   MatrixXd K = T * S.inverse(); // Kalman Gain
-
-  VectorXd z = VectorXd(n_radar_);
-  z <<  meas_package.raw_measurements_(0),
-        meas_package.raw_measurements_(1),
-        meas_package.raw_measurements_(2);
 
   //residual
   VectorXd z_diff = z - z_predicted;
