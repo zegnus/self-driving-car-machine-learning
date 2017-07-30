@@ -28,14 +28,17 @@ public:
   ///* state covariance matrix
   MatrixXd P_;
 
-  ///* measurement noise covariance matrix
-  MatrixXd R_;
+  ///* measurement radar noise covariance matrix
+  MatrixXd R_radar_;
+
+  ///* measurement lidar noise covariance matrix
+  MatrixXd R_lidar_;
 
   ///* predicted sigma points matrix
   MatrixXd x_sigma_points_predicted;
 
   ///* time when the state is true, in us
-  float previous_timestamp_;
+  long previous_timestamp_;
 
   ///* Process noise standard deviation longitudinal acceleration in m/s^2
   double std_a_;
@@ -73,9 +76,12 @@ public:
   ///* Radar State dimension
   int n_radar_;
 
+  ///* Lidar State dimension
+  int n_lidar_;
+
   double NIS_radar_;
 
-  double NIS_lidar_
+  double NIS_lidar_;
 
   /**
    * Constructor
@@ -118,23 +124,33 @@ private:
   float calculateElapsedTime(const MeasurementPackage meas_package);
   VectorXd InitialiseStateVector(const MeasurementPackage meas_package);
   MatrixXd InitialiseCovarianceMatrix(float covariance);
+  void normaliseAngleIn(double *angle);
   MatrixXd GenerateSigmaPoints();
   VectorXd GeneratedAugmentedState();
   MatrixXd GenerateAugmentedCovarianceMatrix();
   MatrixXd GenerateAugmentedSigmaPoints(const VectorXd x_augmented,
                                         const MatrixXd P_augmented);
   MatrixXd PredictSigmaPoints(const MatrixXd x_sigma_points_augmented,
-                              double delta_t);
-  VectorXd PredictStateVector(const MatrixXd x_sigma_points_predicted);
-  MatrixXd PredictCovarianceMatrix(const VectorXd x,
-                                   const MatrixXd x_sigma_points_predicted);
+                              float delta_t);
+  void PredictStateAndCovariance(const MatrixXd x_sigma_points_predicted);
+  MatrixXd
+  PredictRadarCovarianceMatrix(const MatrixXd z_sigma_points,
+                               const MatrixXd z_predicted);
+  MatrixXd
+  PredictLidarCovarianceMatrix(const MatrixXd z_sigma_points,
+                               const MatrixXd z_predicted);
   MatrixXd TransformSigmaPointsToRadarSpace();
-  VectorXd PredictMean(const MatrixXd z_sigma_points);
-  MatrixXd PredictCovarianceMatrix(const MatrixXd z_sigma_points,
-                                   const MatrixXd z_predicted);
-  MatrixXd CalculateCrossCorrelationMatrix(const MatrixXd z_sigma_points,
-                                           const MatrixXd z_predicted,
-                                           const MatrixXd x_sigma_points_predicted);
+  MatrixXd TransformSigmaPointsToLidarSpace();
+
+  VectorXd PredictMean(const MatrixXd z_sigma_points, VectorXd &z_predicted);
+  MatrixXd
+  CalculateRadarCrossCorrelationMatrix(const MatrixXd z_sigma_points,
+                                       const MatrixXd z_predicted,
+                                       const MatrixXd x_sigma_points_predicted);
+  MatrixXd
+  CalculateLidarCrossCorrelationMatrix(const MatrixXd z_sigma_points,
+                                       const MatrixXd z_predicted,
+                                       const MatrixXd x_sigma_points_predicted);
 
 };
 

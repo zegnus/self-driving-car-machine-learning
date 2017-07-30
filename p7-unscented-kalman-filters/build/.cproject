@@ -412,6 +412,6 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="Unscented_Kakman_Filter.null.1" name="Unscented_Kakman_Filter"/>
+		<project id="Unscented_Kalman_Filter.null.1" name="Unscented_Kalman_Filter"/>
 	</storageModule>
 </cproject>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>Unscented_Kakman_Filter-Debug@build</name>
+	<name>Unscented_Kalman_Filter-Debug@build</name>
 	<comment></comment>
 	<projects></projects>
 	<buildSpec>
@@ -117,7 +117,7 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
-			<name>[Subprojects]/Unscented_Kakman_Filter</name>
+			<name>[Subprojects]/Unscented_Kalman_Filter</name>
 			<type>2</type>
 			<location>/home/fgarriga/Development/udacity/self-driving-car/submissions/p7-unscented-kalman-filters/src</location>
 		</link>

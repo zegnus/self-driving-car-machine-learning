@@ -133,7 +133,7 @@ CMAKE_OBJCOPY:FILEPATH=/usr/bin/objcopy
 CMAKE_OBJDUMP:FILEPATH=/usr/bin/objdump
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=Unscented_Kakman_Filter
+CMAKE_PROJECT_NAME:STATIC=Unscented_Kalman_Filter
 
 //Path to a program.
 CMAKE_RANLIB:FILEPATH=/usr/bin/ranlib
@@ -195,6 +195,12 @@ Unscented_Kakman_Filter_BINARY_DIR:STATIC=/home/fgarriga/Development/udacity/sel
 
 //Value Computed by CMake
 Unscented_Kakman_Filter_SOURCE_DIR:STATIC=/home/fgarriga/Development/udacity/self-driving-car/submissions/p7-unscented-kalman-filters/src
+
+//Value Computed by CMake
+Unscented_Kalman_Filter_BINARY_DIR:STATIC=/home/fgarriga/Development/udacity/self-driving-car/submissions/p7-unscented-kalman-filters/build
+
+//Value Computed by CMake
+Unscented_Kalman_Filter_SOURCE_DIR:STATIC=/home/fgarriga/Development/udacity/self-driving-car/submissions/p7-unscented-kalman-filters/src
 
 
 ########################
