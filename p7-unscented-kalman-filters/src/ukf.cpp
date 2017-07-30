@@ -12,7 +12,7 @@ using std::vector;
  */
 UKF::UKF() {
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = false;
+  use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
@@ -109,17 +109,13 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   float delta_t = calculateElapsedTime(meas_package);
   updateLocalTimestamp(meas_package);
 
-  cout << "delta_t" << endl;
-  cout << delta_t << endl;
-
-  // prediction
   Prediction(delta_t);
 
   // update
   if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
     UpdateRadar(meas_package);
   } else {
-    //UpdateLidar(meas_package);
+    UpdateLidar(meas_package);
   }
 }
 
@@ -178,8 +174,6 @@ void UKF::InitialiseCovarianceMatrix(float covariance) {
  */
 void UKF::Prediction(float delta_t) {
 
-  cout << "start prediction" << endl;
-
   VectorXd x_augmented = GeneratedAugmentedState();
   MatrixXd P_augmented = GenerateAugmentedCovarianceMatrix();
   MatrixXd x_sigma_points_augmented = GenerateAugmentedSigmaPoints(x_augmented,
@@ -188,14 +182,6 @@ void UKF::Prediction(float delta_t) {
   PredictSigmaPoints(x_sigma_points_augmented, delta_t);
 
   PredictStateAndCovariance();
-
-  // x_ = PredictStateVector(x_sigma_points_predicted_);
-
-
-  // P_ = PredictCovarianceMatrix(x_, x_sigma_points_predicted_);
-
-  cout << "end prediction" << endl;
-
 }
 
 VectorXd UKF::GeneratedAugmentedState() {
@@ -221,10 +207,9 @@ MatrixXd UKF::GenerateAugmentedCovarianceMatrix() {
 
 MatrixXd UKF::GenerateAugmentedSigmaPoints(const VectorXd x_augmented,
                                            const MatrixXd P_augmented) {
-  MatrixXd x_sigma_points_augmented = MatrixXd(n_aug_, 2 * n_aug_ + 1);
-
   MatrixXd L = P_augmented.llt().matrixL(); // square root matrix
 
+  MatrixXd x_sigma_points_augmented = MatrixXd(n_aug_, 2 * n_aug_ + 1);
   x_sigma_points_augmented.col(0) = x_augmented;
 
   for (int i = 0; i < n_aug_; i++) {
@@ -291,11 +276,12 @@ void UKF::PredictSigmaPoints(const MatrixXd x_sigma_points_augmented,
 
 void UKF::PredictStateAndCovariance() {
   x_.fill(0.0);
-  P_.fill(0.0);
-
   for (int i = 0; i < 2 * n_aug_ + 1; i++) { //iterate over sigma points
     x_ = x_ + weights_(i) * x_sigma_points_predicted_.col(i);
+  }
 
+  P_.fill(0.0);
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) { //iterate over sigma points
     VectorXd x_diff = x_sigma_points_predicted_.col(i) - x_;
     normaliseAngleIn(&(x_diff(3)));
 
@@ -359,8 +345,6 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
   VectorXd z_predicted = VectorXd(n_radar_);
   z_predicted = PredictMean(z_sigma_points, z_predicted);
-
-  cout << "z_predicted" << z_predicted << endl;
 
   MatrixXd S = PredictRadarCovarianceMatrix(z_sigma_points, z_predicted);
   S = S + R_radar_;
