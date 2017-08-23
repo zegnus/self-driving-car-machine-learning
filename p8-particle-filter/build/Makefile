@@ -48,7 +48,7 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/fgarriga/Development/udacity/self-driving-car/submissions/p8-particle-filter
+CMAKE_SOURCE_DIR = /home/fgarriga/Development/udacity/self-driving-car/submissions/p8-particle-filter/src
 
 # The top-level build directory on which CMake was run.
 CMAKE_BINARY_DIR = /home/fgarriga/Development/udacity/self-driving-car/submissions/p8-particle-filter/build
@@ -123,59 +123,59 @@ particle_filter/fast:
 	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/build
 .PHONY : particle_filter/fast
 
-src/main.o: src/main.cpp.o
+main.o: main.cpp.o
 
-.PHONY : src/main.o
-
-# target to build an object file
-src/main.cpp.o:
-	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/src/main.cpp.o
-.PHONY : src/main.cpp.o
-
-src/main.i: src/main.cpp.i
-
-.PHONY : src/main.i
-
-# target to preprocess a source file
-src/main.cpp.i:
-	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/src/main.cpp.i
-.PHONY : src/main.cpp.i
-
-src/main.s: src/main.cpp.s
-
-.PHONY : src/main.s
-
-# target to generate assembly for a file
-src/main.cpp.s:
-	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/src/main.cpp.s
-.PHONY : src/main.cpp.s
-
-src/particle_filter.o: src/particle_filter.cpp.o
-
-.PHONY : src/particle_filter.o
+.PHONY : main.o
 
 # target to build an object file
-src/particle_filter.cpp.o:
-	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/src/particle_filter.cpp.o
-.PHONY : src/particle_filter.cpp.o
+main.cpp.o:
+	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/main.cpp.o
+.PHONY : main.cpp.o
 
-src/particle_filter.i: src/particle_filter.cpp.i
+main.i: main.cpp.i
 
-.PHONY : src/particle_filter.i
+.PHONY : main.i
 
 # target to preprocess a source file
-src/particle_filter.cpp.i:
-	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/src/particle_filter.cpp.i
-.PHONY : src/particle_filter.cpp.i
+main.cpp.i:
+	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/main.cpp.i
+.PHONY : main.cpp.i
 
-src/particle_filter.s: src/particle_filter.cpp.s
+main.s: main.cpp.s
 
-.PHONY : src/particle_filter.s
+.PHONY : main.s
 
 # target to generate assembly for a file
-src/particle_filter.cpp.s:
-	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/src/particle_filter.cpp.s
-.PHONY : src/particle_filter.cpp.s
+main.cpp.s:
+	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/main.cpp.s
+.PHONY : main.cpp.s
+
+particle_filter.o: particle_filter.cpp.o
+
+.PHONY : particle_filter.o
+
+# target to build an object file
+particle_filter.cpp.o:
+	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/particle_filter.cpp.o
+.PHONY : particle_filter.cpp.o
+
+particle_filter.i: particle_filter.cpp.i
+
+.PHONY : particle_filter.i
+
+# target to preprocess a source file
+particle_filter.cpp.i:
+	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/particle_filter.cpp.i
+.PHONY : particle_filter.cpp.i
+
+particle_filter.s: particle_filter.cpp.s
+
+.PHONY : particle_filter.s
+
+# target to generate assembly for a file
+particle_filter.cpp.s:
+	$(MAKE) -f CMakeFiles/particle_filter.dir/build.make CMakeFiles/particle_filter.dir/particle_filter.cpp.s
+.PHONY : particle_filter.cpp.s
 
 # Help Target
 help:
@@ -186,12 +186,12 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... particle_filter"
-	@echo "... src/main.o"
-	@echo "... src/main.i"
-	@echo "... src/main.s"
-	@echo "... src/particle_filter.o"
-	@echo "... src/particle_filter.i"
-	@echo "... src/particle_filter.s"
+	@echo "... main.o"
+	@echo "... main.i"
+	@echo "... main.s"
+	@echo "... particle_filter.o"
+	@echo "... particle_filter.i"
+	@echo "... particle_filter.s"
 .PHONY : help
 
 
