@@ -117,6 +117,47 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+
+  int observations_size = observations.size();
+  int map_landmarks_size = map_landmarks.landmark_list.size();
+
+  for (int i = 0; i < num_particles; i++) {
+    Particle particle = particles[i];
+
+    // transform observation coordinates from vehicle coordinates to map coordinates
+
+    double cos_particle_theta = cos(particle.theta);
+    double sin_particle_theta = sin(particle.theta);
+
+    vector<LandmarkObs> transformed_observations;
+    for (int j = 0; j < observations_size; j++) {
+      LandmarkObs observation = observations[j];
+
+      LandmarkObs transformed_observation;
+      transformed_observation.x = particle.x + observation.x * cos_particle_theta - observation.y * sin_particle_theta;
+      transformed_observation.y = particle.y + observation.x * sin_particle_theta + observation.y * cos_particle_theta;
+      transformed_observation.id = observation.id;
+
+      transformed_observations.push_back(transformed_observation);
+    }
+
+    // gather all map landmarks that are in the sensor_range of the particle
+
+    vector<LandmarkObs> map_landmarks_in_range;
+    for (int j = 0; j < map_landmarks_size; j++) {
+      Map::single_landmark_s landmark = map_landmarks.landmark_list[j];
+
+      double distance = dist(landmark.x_f, landmark.y_f, particle.x, particle.y);
+      if (distance < sensor_range) {
+        LandmarkObs landmark_observed;
+        landmark_observed.id = landmark.id_i;
+        landmark_observed.x = landmark.x_f;
+        landmark_observed.y = landmark.y_f;
+
+        map_landmarks_in_range.push_back(landmark_observed);
+      }
+    }
+  }
 }
 
 void ParticleFilter::resample() {
