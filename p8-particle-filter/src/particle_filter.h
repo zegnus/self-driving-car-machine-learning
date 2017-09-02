@@ -114,6 +114,11 @@ public:
 	const bool initialized() const {
 		return is_initialized;
 	}
+
+private:
+
+	std::vector<LandmarkObs> findClosestMapLandmarks(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs> observations);
+
 };
 
 
