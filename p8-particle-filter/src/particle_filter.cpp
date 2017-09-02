@@ -65,9 +65,9 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
       particles[i].theta += yaw_rate_delta_t;
     }
 
-    normal_distribution<double> dist_x(particles[i].x, std_x * delta_t);
-    normal_distribution<double> dist_y(particles[i].y, std_y * delta_t);
-    normal_distribution<double> dist_theta(particles[i].theta, std_theta * delta_t);
+    normal_distribution<double> dist_x(particles[i].x, std_x);
+    normal_distribution<double> dist_y(particles[i].y, std_y);
+    normal_distribution<double> dist_theta(particles[i].theta, std_theta);
 
     particles[i].x = dist_x(gen);
     particles[i].y = dist_y(gen);
@@ -81,9 +81,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
   int predicted_size = predicted.size();
 
   for (int i = 0; i < observations_size; i++) {
-    LandmarkObs observation = observations[i];
-
-    int landmark_id = -1;
+    LandmarkObs &observation = observations[i];
     double minimum_distance = numeric_limits<double>::max();
 
     for (int j = 0; j < predicted_size; j++) {
@@ -92,11 +90,9 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
       double distance = dist(observation.x, observation.y, prediction.x, prediction.y);
       if (minimum_distance > distance) {
         minimum_distance = distance;
-        landmark_id = prediction.id;
+        observation.id = prediction.id;
       }
     }
-
-    observation.id = landmark_id;
   }
 }
 
@@ -165,8 +161,8 @@ void ParticleFilter::updateWeights(double sensor_range,
     vector<LandmarkObs> map_landmarks_in_range;
     for (int j = 0; j < map_landmarks_size; j++) {
       Map::single_landmark_s landmark = map_landmarks.landmark_list[j];
+      double distance = dist(landmark.x_f, landmark.y_f, particle.x, particle.y);
 
-      double distance = dist(particle.x, particle.y, landmark.x_f, landmark.y_f);
       if (distance < sensor_range) {
         LandmarkObs landmark_observed;
         landmark_observed.id = landmark.id_i;
@@ -184,6 +180,10 @@ void ParticleFilter::updateWeights(double sensor_range,
 
     double probability = 1.0;
 
+    vector<int> associations;
+    vector<double> sense_x;
+    vector<double> sense_y;
+
     for (int j = 0; j < observations_size; j++) {
       LandmarkObs observation = transformed_observations[j];
       LandmarkObs map_landmark = closest_landmarks[j];
@@ -199,10 +199,16 @@ void ParticleFilter::updateWeights(double sensor_range,
 
       double weight = gauss_norm * exp(-exponent_x) * exp(-exponent_y);
       probability *= weight;
+
+      associations.push_back(observation.id);
+      sense_x.push_back(observation.x);
+      sense_y.push_back(observation.y);
     }
 
     particle.weight = probability;
     weights[i] = probability;
+
+    SetAssociations(particle, associations, sense_x, sense_y);
 
     cout << weights[i] << endl;
   }
