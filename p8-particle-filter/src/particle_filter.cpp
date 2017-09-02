@@ -1,19 +1,15 @@
-/*
- * particle_filter.cpp
- *
- *  Created on: Dec 12, 2016
- *      Author: Tiffany Huang
- */
-
 #include <random>
 #include <algorithm>
 #include <iostream>
 #include <numeric>
-#include <math.h> 
+#include <math.h>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <iterator>
+#include <limits>
+#include <unordered_map>
+
 
 #include "particle_filter.h"
 
@@ -47,7 +43,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   is_initialized = true;
 }
 
-void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
+void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate){
   double std_x = std_pos[0];
   double std_y = std_pos[1];
   double std_theta = std_pos[2];
@@ -75,6 +71,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   }
 }
 
+
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
   // For every observation, we want to set the closest predicted landmark id
   int observations_size = observations.size();
@@ -85,7 +82,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
     double minimum_distance = numeric_limits<double>::max();
 
     for (int j = 0; j < predicted_size; j++) {
-      LandmarkObs prediction = predicted[i];
+      LandmarkObs prediction = predicted[j];
 
       double distance = dist(observation.x, observation.y, prediction.x, prediction.y);
       if (minimum_distance > distance) {
@@ -95,6 +92,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
     }
   }
 }
+
 
 std::vector<LandmarkObs> ParticleFilter::findClosestMapLandmarks(std::vector<LandmarkObs> map_landmarks, std::vector<LandmarkObs> observations) {
   // For every observation, we want to find the closest map landmark
@@ -132,12 +130,25 @@ void ParticleFilter::updateWeights(double sensor_range,
   int observations_size = observations.size();
   int map_landmarks_size = map_landmarks.landmark_list.size();
 
-  double sigma_x = std_landmark[0];
-  double sigma_y = std_landmark[1];
-  double gauss_norm = 1.0/(2 * M_PI * sigma_x * sigma_y);
-
   for (int i = 0; i < num_particles; i++) {
     Particle &particle = particles[i];
+
+    // gather all map landmarks that are in the sensor_range of the particle
+
+    vector<LandmarkObs> map_landmarks_in_range;
+    for (int j = 0; j < map_landmarks_size; j++) {
+     Map::single_landmark_s landmark = map_landmarks.landmark_list[j];
+     double distance = dist(landmark.x_f, landmark.y_f, particle.x, particle.y);
+
+     if (distance < sensor_range) {
+       LandmarkObs landmark_observed;
+       landmark_observed.id = landmark.id_i;
+       landmark_observed.x = landmark.x_f;
+       landmark_observed.y = landmark.y_f;
+
+       map_landmarks_in_range.push_back(landmark_observed);
+     }
+    }
 
     // transform observation coordinates from vehicle coordinates to map coordinates
 
@@ -156,104 +167,78 @@ void ParticleFilter::updateWeights(double sensor_range,
       transformed_observations.push_back(transformed_observation);
     }
 
-    // gather all map landmarks that are in the sensor_range of the particle
-
-    vector<LandmarkObs> map_landmarks_in_range;
-    for (int j = 0; j < map_landmarks_size; j++) {
-      Map::single_landmark_s landmark = map_landmarks.landmark_list[j];
-      double distance = dist(landmark.x_f, landmark.y_f, particle.x, particle.y);
-
-      if (distance < sensor_range) {
-        LandmarkObs landmark_observed;
-        landmark_observed.id = landmark.id_i;
-        landmark_observed.x = landmark.x_f;
-        landmark_observed.y = landmark.y_f;
-
-        map_landmarks_in_range.push_back(landmark_observed);
-      }
-    }
-
     vector<LandmarkObs> closest_landmarks = findClosestMapLandmarks(map_landmarks_in_range, transformed_observations);
 
     // for all landmarks in range, we calculate the position difference between
     // the predicted observation and the real landmark
 
-    double probability = 1.0;
+    double sigma_x = std_landmark[0];
+    double sigma_y = std_landmark[1];
+    double gauss_norm = 1.0/(2 * M_PI * sigma_x * sigma_y);
 
-    vector<int> associations;
-    vector<double> sense_x;
-    vector<double> sense_y;
+    double probability = 1.0;
 
     for (int j = 0; j < observations_size; j++) {
       LandmarkObs observation = transformed_observations[j];
-      LandmarkObs map_landmark = closest_landmarks[j];
+      LandmarkObs closest_map = closest_landmarks[j];
 
       // weights
 
-      double diff_x = observation.x - map_landmark.x;
-      double diff_y = observation.y - map_landmark.y;
+      double diff_x = observation.x - closest_map.x;
+      double diff_y = observation.y - closest_map.y;
 
       double exponent_x = (diff_x * diff_x) / (2 * sigma_x * sigma_x);
       double exponent_y = (diff_y * diff_y) / (2 * sigma_y * sigma_y);
       double exponent = exponent_x + exponent_y;
 
-      double weight = gauss_norm * exp(-exponent_x) * exp(-exponent_y);
+      double weight = gauss_norm * exp(-exponent);
       probability *= weight;
-
-      associations.push_back(observation.id);
-      sense_x.push_back(observation.x);
-      sense_y.push_back(observation.y);
     }
 
     particle.weight = probability;
-    weights[i] = probability;
-
-    SetAssociations(particle, associations, sense_x, sense_y);
+    weights.push_back(probability);
 
     cout << weights[i] << endl;
   }
 }
 
 void ParticleFilter::resample() {
-	// TODO: Resample particles with replacement with probability proportional to their weight. 
-	// NOTE: You may find std::discrete_distribution helpful here.
-	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
-
-  std::vector<Particle> new_particles(num_particles);
+  vector<Particle> new_particles;
   std::discrete_distribution<> weighted_distribution(weights.begin(), weights.end());
   int index = 0;
 
-  for (int i = 0; i < num_particles; i++) {
+  for(int i = 0; i < num_particles; i++){
     index = weighted_distribution(gen);
     new_particles.push_back(particles[index]);
   }
 
+  weights.clear();
   particles = new_particles;
 }
 
 Particle ParticleFilter::SetAssociations(Particle particle, std::vector<int> associations, std::vector<double> sense_x, std::vector<double> sense_y)
 {
-	//particle: the particle to assign each listed association, and association's (x,y) world coordinates mapping to
-	// associations: The landmark id that goes along with each listed association
-	// sense_x: the associations x mapping already converted to world coordinates
-	// sense_y: the associations y mapping already converted to world coordinates
+  //particle: the particle to assign each listed association, and association's (x,y) world coordinates mapping to
+  // associations: The landmark id that goes along with each listed association
+  // sense_x: the associations x mapping already converted to world coordinates
+  // sense_y: the associations y mapping already converted to world coordinates
 
-	//Clear the previous associations
-	particle.associations.clear();
-	particle.sense_x.clear();
-	particle.sense_y.clear();
+  //Clear the previous associations
+  particle.associations.clear();
+  particle.sense_x.clear();
+  particle.sense_y.clear();
 
-	particle.associations= associations;
- 	particle.sense_x = sense_x;
- 	particle.sense_y = sense_y;
+  particle.associations= associations;
+  particle.sense_x = sense_x;
+  particle.sense_y = sense_y;
 
- 	return particle;
+  return particle;
 }
 
 string ParticleFilter::getAssociations(Particle best)
 {
-	vector<int> v = best.associations;
-	stringstream ss;
+  vector<int> v = best.associations;
+  stringstream ss;
     copy( v.begin(), v.end(), ostream_iterator<int>(ss, " "));
     string s = ss.str();
     s = s.substr(0, s.length()-1);  // get rid of the trailing space
@@ -261,8 +246,8 @@ string ParticleFilter::getAssociations(Particle best)
 }
 string ParticleFilter::getSenseX(Particle best)
 {
-	vector<double> v = best.sense_x;
-	stringstream ss;
+  vector<double> v = best.sense_x;
+  stringstream ss;
     copy( v.begin(), v.end(), ostream_iterator<float>(ss, " "));
     string s = ss.str();
     s = s.substr(0, s.length()-1);  // get rid of the trailing space
@@ -270,8 +255,8 @@ string ParticleFilter::getSenseX(Particle best)
 }
 string ParticleFilter::getSenseY(Particle best)
 {
-	vector<double> v = best.sense_y;
-	stringstream ss;
+  vector<double> v = best.sense_y;
+  stringstream ss;
     copy( v.begin(), v.end(), ostream_iterator<float>(ss, " "));
     string s = ss.str();
     s = s.substr(0, s.length()-1);  // get rid of the trailing space
