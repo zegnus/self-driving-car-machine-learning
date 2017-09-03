@@ -117,7 +117,20 @@ public:
 
 private:
 
-	std::vector<LandmarkObs> findClosestMapLandmarks(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs> observations);
+	std::vector<LandmarkObs> retrieveMapLandmarksInRange(const double sensor_range,
+	                                                     const Particle particle,
+	                                                     const Map map_landmarks);
+
+  std::vector<LandmarkObs> transformLocalToMapCoordinates(const Particle particle,
+                                                          const std::vector<LandmarkObs> observations);
+
+	std::vector<LandmarkObs> findClosestMapLandmarks(const std::vector<LandmarkObs> predicted,
+	                                                 const std::vector<LandmarkObs> observations);
+
+	double calculateParticleWeightBasedOnDistanceBetween(const std::vector<LandmarkObs> observations,
+	                                                     const std::vector<LandmarkObs> map_landmarks,
+	                                                     const double sigma_x,
+                                                       const double sigma_y);
 
 };
 

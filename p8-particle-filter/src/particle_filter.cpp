@@ -93,13 +93,80 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
   }
 }
 
+void ParticleFilter::updateWeights(double sensor_range,
+                                   double std_landmark[],
+                                   std::vector<LandmarkObs> observations,
+                                   Map map_landmarks) {
+  const double sigma_x = std_landmark[0];
+  const double sigma_y = std_landmark[1];
 
-std::vector<LandmarkObs> ParticleFilter::findClosestMapLandmarks(std::vector<LandmarkObs> map_landmarks, std::vector<LandmarkObs> observations) {
-  // For every observation, we want to find the closest map landmark
-  std::vector<LandmarkObs> closest_map_landmarks;
+  for (unsigned int i = 0; i < num_particles; i++) {
+    Particle &particle = particles[i];
 
+    const vector<LandmarkObs> map_landmarks_in_range = retrieveMapLandmarksInRange(sensor_range, particle, map_landmarks);
+
+    const vector<LandmarkObs> transformed_observations = transformLocalToMapCoordinates(particle, observations);
+
+    const vector<LandmarkObs> closest_landmarks = findClosestMapLandmarks(map_landmarks_in_range, transformed_observations);
+
+    double probability = calculateParticleWeightBasedOnDistanceBetween(transformed_observations, closest_landmarks, sigma_x, sigma_y);
+
+    particle.weight = probability;
+    weights.push_back(probability);
+  }
+}
+
+std::vector<LandmarkObs> ParticleFilter::retrieveMapLandmarksInRange(const double sensor_range,
+                                                                     const Particle particle,
+                                                                     const Map map_landmarks) {
+  vector<LandmarkObs> map_landmarks_in_range;
+  const unsigned int map_landmarks_size = map_landmarks.landmark_list.size();
+
+  for (unsigned int i = 0; i < map_landmarks_size; i++) {
+   const Map::single_landmark_s landmark = map_landmarks.landmark_list[i];
+   const double distance = dist(landmark.x_f, landmark.y_f, particle.x, particle.y);
+
+   if (distance < sensor_range) {
+     LandmarkObs landmark_observed;
+     landmark_observed.id = landmark.id_i;
+     landmark_observed.x = landmark.x_f;
+     landmark_observed.y = landmark.y_f;
+
+     map_landmarks_in_range.push_back(landmark_observed);
+   }
+  }
+
+  return map_landmarks_in_range;
+}
+
+std::vector<LandmarkObs> ParticleFilter::transformLocalToMapCoordinates(const Particle particle,
+                                                                        const std::vector<LandmarkObs> observations) {
+  const double cos_particle_theta = cos(particle.theta);
+  const double sin_particle_theta = sin(particle.theta);
+  const unsigned int observations_size = observations.size();
+
+  vector<LandmarkObs> transformed_observations;
+
+  for (unsigned int i = 0; i < observations_size; i++) {
+    const LandmarkObs observation = observations[i];
+
+    LandmarkObs transformed_observation;
+    transformed_observation.x = particle.x + observation.x * cos_particle_theta - observation.y * sin_particle_theta;
+    transformed_observation.y = particle.y + observation.x * sin_particle_theta + observation.y * cos_particle_theta;
+    transformed_observation.id = observation.id;
+
+    transformed_observations.push_back(transformed_observation);
+  }
+
+  return transformed_observations;
+}
+
+std::vector<LandmarkObs> ParticleFilter::findClosestMapLandmarks(const std::vector<LandmarkObs> map_landmarks,
+                                                                 const std::vector<LandmarkObs> observations) {
   const unsigned int observations_size = observations.size();
   const unsigned int map_landmark_size = map_landmarks.size();
+
+  std::vector<LandmarkObs> closest_map_landmarks;
 
   for (unsigned int i = 0; i < observations_size; i++) {
     const LandmarkObs observation = observations[i];
@@ -123,81 +190,33 @@ std::vector<LandmarkObs> ParticleFilter::findClosestMapLandmarks(std::vector<Lan
   return closest_map_landmarks;
 }
 
-void ParticleFilter::updateWeights(double sensor_range,
-                                   double std_landmark[],
-                                   std::vector<LandmarkObs> observations,
-                                   Map map_landmarks) {
+double ParticleFilter::calculateParticleWeightBasedOnDistanceBetween(const std::vector<LandmarkObs> observations,
+                                                                     const std::vector<LandmarkObs> map_landmarks,
+                                                                     const double sigma_x,
+                                                                     const double sigma_y) {
+  const double gauss_norm = 1.0/(2 * M_PI * sigma_x * sigma_y);
+  const double two_sigma_x_at_two = 2 * sigma_x * sigma_x;
+  const double two_sigma_y_at_two = 2 * sigma_y * sigma_y;
+
+  double weight = 1.0;
+
   const unsigned int observations_size = observations.size();
-  const unsigned int map_landmarks_size = map_landmarks.landmark_list.size();
 
-  for (unsigned int i = 0; i < num_particles; i++) {
-    Particle &particle = particles[i];
+  for (unsigned int i = 0; i < observations_size; i++) {
+    const LandmarkObs observation = observations[i];
+    const LandmarkObs map_landmark = map_landmarks[i];
 
-    // gather all map landmarks that are in the sensor_range of the particle
+    const double diff_x = observation.x - map_landmark.x;
+    const double diff_y = observation.y - map_landmark.y;
 
-    vector<LandmarkObs> map_landmarks_in_range;
-    for (unsigned int j = 0; j < map_landmarks_size; j++) {
-     const Map::single_landmark_s landmark = map_landmarks.landmark_list[j];
-     const double distance = dist(landmark.x_f, landmark.y_f, particle.x, particle.y);
+    const double exponent_x = (diff_x * diff_x) / two_sigma_x_at_two;
+    const double exponent_y = (diff_y * diff_y) / two_sigma_y_at_two;
+    const double exponent = exponent_x + exponent_y;
 
-     if (distance < sensor_range) {
-       LandmarkObs landmark_observed;
-       landmark_observed.id = landmark.id_i;
-       landmark_observed.x = landmark.x_f;
-       landmark_observed.y = landmark.y_f;
-
-       map_landmarks_in_range.push_back(landmark_observed);
-     }
-    }
-
-    // transform observation coordinates from vehicle coordinates to map coordinates
-
-    const double cos_particle_theta = cos(particle.theta);
-    const double sin_particle_theta = sin(particle.theta);
-
-    vector<LandmarkObs> transformed_observations;
-    for (unsigned int j = 0; j < observations_size; j++) {
-      const LandmarkObs observation = observations[j];
-
-      LandmarkObs transformed_observation;
-      transformed_observation.x = particle.x + observation.x * cos_particle_theta - observation.y * sin_particle_theta;
-      transformed_observation.y = particle.y + observation.x * sin_particle_theta + observation.y * cos_particle_theta;
-      transformed_observation.id = observation.id;
-
-      transformed_observations.push_back(transformed_observation);
-    }
-
-    const vector<LandmarkObs> closest_landmarks = findClosestMapLandmarks(map_landmarks_in_range, transformed_observations);
-
-    // for all landmarks in range, we calculate the position difference between
-    // the predicted observation and the real landmark
-
-    const double sigma_x = std_landmark[0];
-    const double sigma_y = std_landmark[1];
-    const double gauss_norm = 1.0/(2 * M_PI * sigma_x * sigma_y);
-
-    double probability = 1.0;
-
-    for (unsigned int j = 0; j < observations_size; j++) {
-      const LandmarkObs observation = transformed_observations[j];
-      const LandmarkObs closest_map = closest_landmarks[j];
-
-      // weights
-
-      const double diff_x = observation.x - closest_map.x;
-      const double diff_y = observation.y - closest_map.y;
-
-      const double exponent_x = (diff_x * diff_x) / (2 * sigma_x * sigma_x);
-      const double exponent_y = (diff_y * diff_y) / (2 * sigma_y * sigma_y);
-      const double exponent = exponent_x + exponent_y;
-
-      const double weight = gauss_norm * exp(-exponent);
-      probability *= weight;
-    }
-
-    particle.weight = probability;
-    weights.push_back(probability);
+    weight *= gauss_norm * exp(-exponent);
   }
+
+  return weight;
 }
 
 void ParticleFilter::resample() {
