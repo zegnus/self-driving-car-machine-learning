@@ -102,6 +102,11 @@ class FG_eval {
       AD<double> delta0 = vars[delta_start + t];
       AD<double> a0 = vars[a_start + t];
 
+      if (t > 0) {
+        delta0 = vars[delta_start + t - 1];
+        a0 = vars[a_start + t - 1];
+      }
+
       const AD<double> first_param = coeffs[0];
       const AD<double> second_param = coeffs[1] * x0;
       const AD<double> third_param = coeffs[2] * CppAD::pow(x0, 2);
