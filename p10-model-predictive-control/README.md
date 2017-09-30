@@ -62,71 +62,137 @@ Self-Driving Car Engineer Nanodegree Program
 3. Compile: `cmake .. && make`
 4. Run it: `./mpc`.
 
-## Tips
+# Model Predictive Control
 
-1. It's recommended to test the MPC on basic examples to see if your implementation behaves as desired. One possible example
-is the vehicle starting offset of a straight line (reference). If the MPC implementation is correct, after some number of timesteps
-(not too many) it should find and track the reference line.
-2. The `lake_track_waypoints.csv` file has the waypoints of the lake track. You could use this to fit polynomials and points and see of how well your model tracks curve. NOTE: This file might be not completely in sync with the simulator so your solution should NOT depend on it.
-3. For visualization this C++ [matplotlib wrapper](https://github.com/lava/matplotlib-cpp) could be helpful.)
-4.  Tips for setting up your environment are available [here](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/23d376c7-0195-4276-bdf0-e02f1f3c665d)
+The objective of our algorithm will be to optimise the car's actuators (steering, throttle) so that the error between a reference coordinates is minimised.
 
-## Editor Settings
+We are going to follow these steps:
+- Calculate the reference center of the lane as a polynomial function
+- Calculate the error between the car and the center of the lane for the position of the car and for the steering angle
+- Once we know the error that we have we will use a solver that will find the best parameter combination that will minimise this error. The solver will calculate the best solution considering the current parameters and planning for the future up to a specified amount of time
+- The solution will give us new values for the steering and for the throttle of the car
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
+## Error calculation
 
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
+We are given the coordinates of the center of the lane in world's coordinate system as a waypoints. We will first transform those coordinates to car's coordinates and then we will find the third order polynomial that best fit those waypoints:
 
-## Code Style
+```
+const double cos_psi = cos(psi);
+const double sin_psi = sin(psi);
 
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
+for (i = 0; i < pts_size; i++) {
+  const double x_diff = ptsx[i] - px;
+  const double y_diff = ptsy[i] - py;
+  ptsx_car_coordinate[i] = x_diff * cos_psi + y_diff * sin_psi;  
+  ptsy_car_coordinate[i] = -x_diff * sin_psi + y_diff * cos_psi;  
+}
 
-## Project Instructions and Rubric
+Eigen::VectorXd coeffs = polyfit(ptsx_car_coordinate, ptsy_car_coordinate, 3);
 
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
+```
 
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/b1ff3be0-c904-438e-aad3-2b5379f0e0c3/concepts/1a2255a0-e23c-44cf-8d41-39b8a3c8264a)
-for instructions and the project rubric.
+Once we have the coefficients of the polynomial function, we will then calculate the coordinates of the car's position. As our center coordinates is the center of the car, car's position will always be zero. Then we calculate the coordinate (0, 0) in the polynomial function and any value different to zero will be our error value. Our ideal scenario is to return zero as an error meaning that the car is already in the center of the lane.
 
-## Hints!
+In order to calculate the steering angle, we will do it through the derivative of the polynomial function.
 
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
+```
+// we evaluate the desired line against the center of the car -> polyeval(c, px) - py
+double cte = polyeval(coeffs, 0); 
 
-## Call for IDE Profiles Pull Requests
+// derivative of f(x) = c[1] + 2*c[2]*x + 3*c[3]*x^2 where x is zero
+double psi_error = -atan(coeffs[1]); 
 
-Help your fellow students!
+```
 
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
+Once we know our error, we will now solve the optimisation problem knowing:
+- The velocity of the car
+- The errors cte and psi_error
+- The coefficients of the polynomial that fits the center of the lane, as this is our reference
 
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
+## Optimisation problem solver
 
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
+The algorithm that we are going to use is an `Interior Point Optimizer` that is used for a large-scale non-linear optimization problems that find local solution. It uses a set of current values, an objective function, a set of constrain functions and upper/lower bounds that constrain the range of the possible parameters.
 
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
+The optimiser will calculate a number of steps in the future in order to be able to predict better the best possible solution.
 
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
+The number of seconds in the future that we will predict will be a combination of:
+- The number of steps that we want to calculate in the future
+- The time between steps
 
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
+In our scenario we will have `10` steps and the time between steps will be of `0.1`. With these paremeters we will be predicting the best solution up to 1 second in the future.
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+### Current state
 
+Our current state will be use as state variables
+- The coordinates of the car
+- The current steering angle
+- The velocity of the car
+- The cte error
+- The psi error
+
+### Upper/Lower bounds
+
+- The bounds for the steering angle would be between `[-25, 25]` degrees
+- The bounds for the throttle will be `[-1, 1]` as top max and minimum allowed by the simulator
+- The rest of the values will have the max/min `1.0e19`
+
+The constrains for these upper and lower bounds will be the current values themselves as those are the values that we have
+
+### Objective function
+
+This function will be calculated across all steps where the step zero is now, and the step + 1 is one step in the future.
+
+The cost to be minimised:
+- We will compute the cost accumulated across all the different parameters. This cost can be tuned to minimise or maximise certain parameters
+- The cost for the velocity of the car, cte and psi_error will be the standard square error where enhances error with big values and minimises errors with low values
+- The cost for the steering will be the squared error but penalised 200 times, the objective is to prevent aggressive steering
+- The cost for the throttle will be the squared error but penalised 50 times, the objective is to make the acceleration a bit smoother
+- We will also penalise big changes between steps, so that between different time intervals we do not allow sudden change of values.
+
+#### The model
+
+In order to predict the state variables in the future:
+```
+x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
+y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
+psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
+v_[t+1] = v[t] + a[t] * dt
+cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
+epsi[t+1] = psi[t] - psides[t] + v[t] * delta[t] / Lf * dt
+```
+
+we will use the following formulas where the objective would be to make them equal to zero, as an example:
+```
+x_[t+1] - (x[t] + v[t] * cos(psi[t]) * dt) = 0 
+```
+
+For the cte error `f(x[t])` we will use the coefficients of the polynomial fit at coordinate `x[0]` minutes the coordinate `y[0]` as:
+```
+const AD<double> first_param = coeffs[0];
+const AD<double> second_param = coeffs[1] * x0;
+const AD<double> third_param = coeffs[2] * CppAD::pow(x0, 2);
+const AD<double> fourth_param = coeffs[3] * CppAD::pow(x0, 3);
+AD<double> f0 = first_param + second_param + third_param + fourth_param;
+
+f(x[t]) = f0 - y0
+```
+
+For the steering error `psides` we will calculate the arc tangent of the derivative of the polynomial function `f0` as:
+```
+const AD<double> first_param_derivative = 0;
+const AD<double> second_param_derivative = coeffs[1];
+const AD<double> third_param_derivative = coeffs[2] * 2 * x0;
+const AD<double> fourth_param_derivative = coeffs[3] * 3 * CppAD::pow(x0, 2);
+AD<double> f0_derivative = first_param_derivative + second_param_derivative + third_param_derivative + fourth_param_derivative;
+AD<double> psides0 = CppAD::atan(f0_derivative);
+```
+
+#### Actuators delay
+
+The actuators have a delay of `100ms`. In order to account for it, as we have specify a `dt = 0.1` this will mean that we will skip one step in the constrains. We have accounted for this as:
+```
+if (t > 0) {
+  delta0 = vars[delta_start + t - 1];
+  a0 = vars[a_start + t - 1];
+}
+```
