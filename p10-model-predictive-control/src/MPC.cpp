@@ -10,6 +10,7 @@ const size_t N = 10;
 const double dt = 0.1;
 const double latency = 0.1;
 const double latency_steps = latency / dt;
+const double ref_v = 65;  // we will set this velocity as a reference
 
 double predicted_delta = 0;
 double predicted_a = 0;
@@ -25,7 +26,6 @@ double predicted_a = 0;
 //
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
-const double ref_v = 50;  // we will set this velocity as a reference
 
 // indexes of the variables for all the steps
 size_t x_start = 0;
@@ -58,7 +58,7 @@ class FG_eval {
     // Minimize the use of actuators.
     for (size_t t = 0; t < N - 1; t++) {
       fg[0] += 200 * CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += 10 * CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 50 * CppAD::pow(vars[a_start + t], 2);
     }
 
     // Minimize the value gap between sequential actuations.
