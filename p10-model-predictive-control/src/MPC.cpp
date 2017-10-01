@@ -238,25 +238,31 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // options for IPOPT solver
   std::string options;
   // Uncomment this if you'd like more print information
-  options += "Integer print_level  0\n";
+  options += "Integer print_level 0\n";
   // NOTE: Setting sparse to true allows the solver to take advantage
   // of sparse routines, this makes the computation MUCH FASTER. If you
   // can uncomment 1 of these and see if it makes a difference or not but
   // if you uncomment both the computation time should go up in orders of
   // magnitude.
-  options += "Sparse  true        forward\n";
-  options += "Sparse  true        reverse\n";
+  options += "Sparse true forward\n";
+  options += "Sparse true reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          0.5\n";
+  options += "Numeric max_cpu_time 0.5\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
 
   // solve the problem
   CppAD::ipopt::solve<Dvector, FG_eval>(
-      options, vars, vars_lowerbound, vars_upperbound, constraints_lowerbound,
-      constraints_upperbound, fg_eval, solution
+      options, 
+      vars, 
+      vars_lowerbound, 
+      vars_upperbound, 
+      constraints_lowerbound,
+      constraints_upperbound, 
+      fg_eval, 
+      solution
     );
 
   // Check some of the solution values
