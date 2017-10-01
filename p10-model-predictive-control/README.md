@@ -119,7 +119,17 @@ The number of seconds in the future that we will predict will be a combination o
 - The number of steps that we want to calculate in the future
 - The time between steps
 
-In our scenario we will have `10` steps and the time between steps will be of `0.1`. With these paremeters we will be predicting the best solution up to 1 second in the future.
+### Time horizon
+
+As we will make a prediction into the future we will have to decide how far in the future we will perform the calculations.
+
+The time horizon will be composed by two factors:
+- Number of steps to be computed, the bigger the more number of inputs the optimiser will have to compute adding precision in the calculations. This will add computational overload to the system adding delay in the computations.
+- Time difference between steps. At every step we will have an action for an actuator. If the time difference increases will lead to less frequent updates on the actuators.
+
+For a self-driving car the time horizon should be a few seconds at most, as the environment will change too much beyond a few seconds making the predictions invalid.
+
+In our scenario we have choosen `10` steps and the time between steps will be of `0.1`. With these paremeters we will be predicting the best solution up to 1 second in the future. These values give us a good balance between computational cost and actuators update alowing the car to drive safely.
 
 ### Current state
 
