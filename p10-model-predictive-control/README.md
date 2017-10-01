@@ -199,10 +199,20 @@ AD<double> psides0 = CppAD::atan(f0_derivative);
 
 #### Actuators delay
 
-The actuators have a delay of `100ms`. In order to account for it, as we have specify a `dt = 0.1` this will mean that we will skip one step in the constrains. We have accounted for this as:
+The actuators have a delay of `100ms` meaning that once we have a solution for our actuators we will apply them 100ms late.
+
+In order to account for this delay we are going to:
+- Pick up the solution after one step, as 100ms divided by our differential time os 100ms is one unit `latency_steps = letancy / dt`.
+- Use the steerings and throttle values calculated on the previous step as their upper and lower bounds.
+
 ```
-if (t > 0) {
-  delta0 = vars[delta_start + t - 1];
-  a0 = vars[a_start + t - 1];
+for (i = delta_start; i < delta_start + latency_steps; i++) {
+  vars_lowerbound[i] = predicted_delta;
+  vars_upperbound[i] = predicted_delta;
+}
+
+for (i = a_start; i < a_start + latency_steps; i++) {
+  vars_lowerbound[i] = predicted_a;
+  vars_upperbound[i] = predicted_a;
 }
 ```
