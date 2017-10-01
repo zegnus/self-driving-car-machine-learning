@@ -6,8 +6,13 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N = 10;
-double dt = 0.1;
+const size_t N = 10;
+const double dt = 0.1;
+const double latency = 0.1;
+const double latency_steps = latency / dt;
+
+double predicted_delta = 0;
+double predicted_a = 0;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -53,7 +58,7 @@ class FG_eval {
     // Minimize the use of actuators.
     for (size_t t = 0; t < N - 1; t++) {
       fg[0] += 200 * CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += 50* CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 10 * CppAD::pow(vars[a_start + t], 2);
     }
 
     // Minimize the value gap between sequential actuations.
@@ -101,11 +106,6 @@ class FG_eval {
       // Only consider the actuation at time t.
       AD<double> delta0 = vars[delta_start + t];
       AD<double> a0 = vars[a_start + t];
-
-      if (t > 0) {
-        delta0 = vars[delta_start + t - 1];
-        a0 = vars[a_start + t - 1];
-      }
 
       const AD<double> first_param = coeffs[0];
       const AD<double> second_param = coeffs[1] * x0;
@@ -161,9 +161,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // 6 number of variables -> [x, y, psi, v, cte, epsi]
   // N number of timesteps
   // 2 actuators with N-1 steps
-  size_t n_vars = 6 * N + (N - 1) * 2;
+  const size_t n_vars = 6 * N + (N - 1) * 2;
   // TODO: Set the number of constraints
-  size_t n_constraints = 6 * N;
+  const size_t n_constraints = 6 * N;
 
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
@@ -199,11 +199,25 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars_upperbound[i] = 0.436332;
   }
 
+  // account for latency
+  
+  for (i = delta_start; i < delta_start + latency_steps; i++) {
+    vars_lowerbound[i] = predicted_delta;
+    vars_upperbound[i] = predicted_delta;
+  }
+
   // Acceleration/decceleration upper and lower limits.
   // NOTE: Feel free to change this to something else.
   for (i = a_start; i < n_vars; i++) {
     vars_lowerbound[i] = -1.0;
     vars_upperbound[i] = 1.0;
+  }
+
+  // account for latency
+
+  for (i = a_start; i < a_start + latency_steps; i++) {
+    vars_lowerbound[i] = predicted_a;
+    vars_upperbound[i] = predicted_a;
   }
 
   // Lower and upper limits for the constraints
@@ -272,6 +286,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   double cost = solution.obj_value;
   std::cout << "Cost " << cost << std::endl;
 
+  predicted_delta = solution.x[delta_start + latency_steps];
+  predicted_a = solution.x[a_start + latency_steps];
+
   vector<double> predicted_trajectory_x(N-1);
   vector<double> predicted_trajectory_y(N-1);
 
@@ -288,8 +305,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
+
   return {
-    solution.x[delta_start],   
-    solution.x[a_start]
+    predicted_delta,   
+    predicted_a
   };
 }
