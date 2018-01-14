@@ -5,7 +5,7 @@
                 "name": "(gdb) Launch",
                 "type": "cppdbg",
                 "request": "launch",
-                "program": "${workspaceRoot}/build/mpc",
+                "program": "${workspaceRoot}/build/path_planning",
                 "args": [],
                 "stopAtEntry": false,
                 "cwd": "${workspaceRoot}",

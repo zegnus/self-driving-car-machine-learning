@@ -22,7 +22,7 @@
         },
         {
             "taskName": "run",
-            "args": ["./mpc"]           
+            "args": ["./path_planning"]           
         }
     ]
 }
