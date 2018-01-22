@@ -32,7 +32,8 @@
                 "/usr/include/x86_64-linux-gnu",
                 "/usr/lib/gcc/x86_64-linux-gnu/6/include",
                 "/usr/include",
-                "${workspaceRoot}"
+                "${workspaceRoot}",
+                "/usr/include/c++/7"
             ],
             "defines": [],
             "intelliSenseMode": "clang-x64",
