@@ -40,6 +40,10 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
                 // other car is too close, do something about it
                 // ref_vel = 29.5;
                 too_close = true;
+
+                if (lane > 0) {
+                    lane = 0;
+                }
             } 
         }
     }
