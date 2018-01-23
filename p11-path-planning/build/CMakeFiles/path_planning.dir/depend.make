@@ -7,6 +7,7 @@ CMakeFiles/path_planning.dir/src/NextVals.cpp.o: ../src/NextVals.h
 CMakeFiles/path_planning.dir/src/NextValsCalculator.cpp.o: ../src/NextVals.h
 CMakeFiles/path_planning.dir/src/NextValsCalculator.cpp.o: ../src/NextValsCalculator.cpp
 CMakeFiles/path_planning.dir/src/NextValsCalculator.cpp.o: ../src/NextValsCalculator.h
+CMakeFiles/path_planning.dir/src/NextValsCalculator.cpp.o: ../src/spline.h
 CMakeFiles/path_planning.dir/src/NextValsCalculator.cpp.o: ../src/utils.hpp
 
 CMakeFiles/path_planning.dir/src/main.cpp.o: ../src/Eigen-3.3/Eigen/Cholesky

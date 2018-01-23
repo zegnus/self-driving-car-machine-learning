@@ -147,6 +147,9 @@ int main() {
   // The max s value before wrapping around the track back to 0
   double max_s = 6945.554;
 
+	int lane = 1; // start at middle lane
+	double ref_vel = 49.5; // mhp
+
   ifstream in_map_(map_file_.c_str(), ifstream::in);
 
   string line;
@@ -169,7 +172,7 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane,&ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -209,7 +212,12 @@ int main() {
           	json msgJson;
 
 						NextValsCalculator nextValsCalculator;
-						NextVals nextVals = nextValsCalculator.Calculate(previous_path_x, previous_path_y, car_x, car_y, car_yaw);
+						NextVals nextVals = nextValsCalculator.Calculate(
+							previous_path_x, previous_path_y, 
+							car_x, car_y, car_s, car_yaw,
+							map_waypoints_x, map_waypoints_y, map_waypoints_s,
+							lane, ref_vel
+						);
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = nextVals.next_x_vals_;
