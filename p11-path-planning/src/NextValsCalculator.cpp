@@ -13,8 +13,42 @@ NextValsCalculator::~NextValsCalculator() {}
 NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<double> previous_path_y,
                                         double car_x, double car_y, double car_s, double car_yaw,
                                         vector<double> map_waypoints_x, vector<double> map_waypoints_y, vector<double> map_waypoints_s,
-                                        int lane, double ref_vel) {
+                                        int &lane, double &ref_vel,
+                                        vector<vector<double>> sensor_fusion,
+                                        double end_path_s, double end_path_d) {
     int prev_size = previous_path_x.size();
+    double car_lane = 2 + 4 * lane;
+
+    if (prev_size > 0) {
+        car_s = end_path_s;
+    }
+
+    bool too_close = false;
+
+    for (int i = 0; i < sensor_fusion.size(); i++) {
+        float other_car_d = sensor_fusion[i][6];
+
+        if (other_car_d < car_lane + 2 && other_car_d > car_lane - 2) {
+            // other car is in the same lane
+            double other_car_vx = sensor_fusion[i][3];
+            double other_car_vy = sensor_fusion[i][4];
+            double other_car_speed = sqrt(other_car_vx*other_car_vx + other_car_vy*other_car_vy); 
+            double other_car_s = sensor_fusion[i][5];
+            other_car_s += (double)prev_size * 0.02 * other_car_speed; // this is the future position of the other car
+
+            if (other_car_s > car_s && other_car_s - car_s < 30) {
+                // other car is too close, do something about it
+                // ref_vel = 29.5;
+                too_close = true;
+            } 
+        }
+    }
+
+    if (too_close) {
+        ref_vel -= 0.224;
+    } else if (ref_vel < 49.5) {
+        ref_vel += 0.224;
+    }
 
     vector<double> anchor_points_x;
     vector<double> anchor_points_y;
@@ -48,8 +82,6 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
         anchor_points_y.push_back(ref_y_prev);
         anchor_points_y.push_back(ref_y);
     }
-
-    double car_lane = 2 + 4 * lane;
 
     vector<double> next_wp0 = getXY(car_s + 30, car_lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
     vector<double> next_wp1 = getXY(car_s + 60, car_lane, map_waypoints_s, map_waypoints_x, map_waypoints_y);
