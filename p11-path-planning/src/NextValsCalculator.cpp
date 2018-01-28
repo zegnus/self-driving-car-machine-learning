@@ -16,42 +16,74 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
                                         int &lane, double &ref_vel,
                                         vector<vector<double>> sensor_fusion,
                                         double end_path_s, double end_path_d) {
-    int prev_size = previous_path_x.size();
-    double car_lane = 2 + 4 * lane;
+    const double maximum_allowed_velocity = 49.9;
+    const double maximum_allowed_speed_increment = 0.224;
+    const double minimum_allowed_car_separation_distance = 30;
+    const double minimum_allowed_car_separation_distance_change_lane = minimum_allowed_car_separation_distance / 1.5;
+    
+    const int prev_size = previous_path_x.size();
+    const double car_lane = 2 + 4 * lane;
 
     if (prev_size > 0) {
         car_s = end_path_s;
     }
 
-    bool too_close = false;
+    bool stay_in_lane_at_maximum_speed = true;
+    bool follow_car_in_front = false;
+    bool safe_to_move_left_lane = true;
+    bool safe_to_move_right_lane = true;
+
+    double target_car_in_front_speed;
 
     for (int i = 0; i < sensor_fusion.size(); i++) {
         float other_car_d = sensor_fusion[i][6];
 
+        double other_car_vx = sensor_fusion[i][3];
+        double other_car_vy = sensor_fusion[i][4];
+        double other_car_speed = sqrt(other_car_vx*other_car_vx + other_car_vy*other_car_vy); 
+        double other_car_s = sensor_fusion[i][5];
+        other_car_s += (double)prev_size * 0.02 * other_car_speed; // this is the future position of the other car
+
         if (other_car_d < car_lane + 2 && other_car_d > car_lane - 2) {
             // other car is in the same lane
-            double other_car_vx = sensor_fusion[i][3];
-            double other_car_vy = sensor_fusion[i][4];
-            double other_car_speed = sqrt(other_car_vx*other_car_vx + other_car_vy*other_car_vy); 
-            double other_car_s = sensor_fusion[i][5];
-            other_car_s += (double)prev_size * 0.02 * other_car_speed; // this is the future position of the other car
+            
+            if (other_car_s > car_s && other_car_s - car_s < minimum_allowed_car_separation_distance) {
+                stay_in_lane_at_maximum_speed = false;
+                follow_car_in_front = true;
 
-            if (other_car_s > car_s && other_car_s - car_s < 30) {
-                // other car is too close, do something about it
-                // ref_vel = 29.5;
-                too_close = true;
-
-                if (lane > 0) {
-                    lane = 0;
-                }
+                target_car_in_front_speed = other_car_speed;
             } 
+        } else if (other_car_d < car_lane - 2 && other_car_d > car_lane - 6) {
+            // other car is in the left lane
+            if (abs(other_car_s - car_s) < minimum_allowed_car_separation_distance_change_lane) {
+                // other car is too close, is not safe to move
+                safe_to_move_left_lane = false;
+            }
+        } else if (other_car_d > car_lane + 2 && other_car_d < car_lane + 6) {
+            // other car is in the right lane
+            if (abs(other_car_s - car_s) < minimum_allowed_car_separation_distance_change_lane) {
+                // other car is too close, is not safe to move
+                safe_to_move_right_lane = false;
+            }
         }
     }
 
-    if (too_close) {
-        ref_vel -= 0.224;
-    } else if (ref_vel < 49.5) {
-        ref_vel += 0.224;
+    if (stay_in_lane_at_maximum_speed) {
+        if (ref_vel < maximum_allowed_velocity) {
+            ref_vel += maximum_allowed_speed_increment;
+        }
+    } else if (lane > 0 && safe_to_move_left_lane) {
+        lane--;
+    } else if (lane < 2 && safe_to_move_right_lane) {
+        lane++;
+    } else if (follow_car_in_front) {
+        if (ref_vel > target_car_in_front_speed) {
+            ref_vel -= maximum_allowed_speed_increment;
+        }
+    }
+
+    if (ref_vel > maximum_allowed_velocity) {
+        ref_vel = maximum_allowed_velocity;
     }
 
     vector<double> anchor_points_x;
@@ -121,7 +153,7 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
     }
 
     // N_POINTS x 0.02_SECONDS x VELOCITY_DESIRED m/s = TARGET_DISTANCE
-    double target_x = 30.0;
+    double target_x = 20.0;
     double target_y = spline(target_x);
     double target_dist = sqrt((target_x * target_x) + (target_y * target_y));    
     double N = target_dist / (0.02 * ref_vel / 2.24); // 2.24 MPH -> meters per second
@@ -148,16 +180,6 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
         future_path_x.push_back(x_point);
         future_path_y.push_back(y_point);
     }
-
-    // double dist_inc = 0.5;
-
-    // for (int i = 0; i < 50; i++) {
-    //     double next_s = car_s + (i + 1) * dist_inc;
-    //     double next_d = 6;
-    //     vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-    //     future_path_x.push_back(xy[0]);
-    //     future_path_y.push_back(xy[1]);
-    // }
 
     NextVals nextVals;
     nextVals.next_x_vals_ = future_path_x;
