@@ -199,3 +199,5 @@ When following a car that's in front of us, we could improve the algorithm so th
 Changing lanes had a preference to the left lane. We could improve the checks and search for the closets car in every lane. Then choose the lane with the furthest car available.
 
 Speed control and turn control could be improved by adding PID or MPC to the code, using the spline as a reference instead of a hard coded path.
+
+[Video code running](https://youtu.be/nYJweocOgsw)
