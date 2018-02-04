@@ -8,7 +8,7 @@ class NextValsCalculator {
         NextValsCalculator();
         virtual ~NextValsCalculator();
         NextVals Calculate( std::vector<double> previous_path_x, std::vector<double> previous_path_y,
-                            double car_x, double car_y, double car_s, double car_yaw,
+                            double car_x, double car_y, double car_s, double car_d, double car_yaw,
                             std::vector<double> map_waypoints_x, std::vector<double> map_waypoints_y, std::vector<double> map_waypoints_s,
                             int &lane, double &ref_vel,
                             std::vector<std::vector<double>> sensor_fusion,

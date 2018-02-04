@@ -214,7 +214,7 @@ int main() {
 						NextValsCalculator nextValsCalculator;
 						NextVals nextVals = nextValsCalculator.Calculate(
 							previous_path_x, previous_path_y, 
-							car_x, car_y, car_s, car_yaw,
+							car_x, car_y, car_s, car_d, car_yaw,
 							map_waypoints_x, map_waypoints_y, map_waypoints_s,
 							lane, ref_vel,
 							sensor_fusion,
