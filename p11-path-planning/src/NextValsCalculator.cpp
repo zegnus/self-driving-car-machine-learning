@@ -139,7 +139,7 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
         } else if (follow_car_in_front) {
             const double car_separation = target_car_in_front_position - car_s;
             const double car_speed_decrement = slow_down(car_separation);
-            cout << " ref_vel: " << ref_vel << ", target_vel: " << target_car_in_front_speed << ", car_speed_decrement: " << car_speed_decrement << endl;
+            // cout << " ref_vel: " << ref_vel << ", target_vel: " << target_car_in_front_speed << ", car_speed_decrement: " << car_speed_decrement << endl;
             if (ref_vel > target_car_in_front_speed) {
                 ref_vel -= car_speed_decrement;
             }
