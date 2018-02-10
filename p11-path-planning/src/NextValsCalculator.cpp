@@ -1,7 +1,7 @@
 #include "NextValsCalculator.h"
 #include "utils.hpp"
-#include <math.h>
 #include "spline.h"
+#include <cmath>
 #include <iostream>
 
 using namespace std;
