@@ -7,13 +7,14 @@
 using namespace std;
 using namespace utils;
 
-const double maximum_allowed_velocity = 49.9;
-const double maximum_allowed_speed_increment = 0.224 * 5;
+const double maximum_allowed_velocity = 49.5;
+const double minimum_allowed_speed_increment = 0.224;
+const double maximum_allowed_speed_increment = minimum_allowed_speed_increment * 4;
 const double safety_distance_front_car = 20;
-const double safety_distance_front_car_other_lane = 30;
-const double safety_distance_back_car_other_lane = 10;
-const double safety_distance_following_car = 3;
-const double slow_down_parameter = maximum_allowed_speed_increment / (safety_distance_front_car - safety_distance_following_car);
+const double safety_distance_front_car_other_lane = safety_distance_front_car + 12;
+const double safety_distance_back_car_other_lane = 8;
+const double safety_distance_following_car = 10;
+const double slow_down_parameter = (safety_distance_front_car - safety_distance_following_car) / maximum_allowed_speed_increment;
 
 NextValsCalculator::NextValsCalculator() {}
 
@@ -59,7 +60,7 @@ double slow_down(double car_separation) {
         // emergency break
         return maximum_allowed_speed_increment;
     } else {
-        return maximum_allowed_speed_increment - (distance_to_safety * slow_down_parameter);
+        return maximum_allowed_speed_increment - (distance_to_safety / slow_down_parameter);
     }
 }
 
@@ -78,13 +79,14 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
 
     bool stay_in_lane_at_maximum_speed = true;
     bool follow_car_in_front = false;
-    bool safe_to_move_left_lane = false;
-    bool safe_to_move_right_lane = false;
+    bool safe_to_move_left_lane = true;
+    bool safe_to_move_right_lane = true;
 
     double target_car_in_front_speed;
     double target_car_in_front_position = safety_distance_front_car;
 
-    for (int i = 0; i < sensor_fusion.size(); i++) {
+    const int sensor_fusion_size = sensor_fusion.size();
+    for (int i = 0; i < sensor_fusion_size; i++) {
         float other_car_d = sensor_fusion[i][6];
 
         double other_car_vx = sensor_fusion[i][3];
@@ -97,6 +99,7 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
 
         if (same_lane_car(other_car_d, car_lane)) {
             if (same_lane_car_is_too_close(other_car_s, car_s)) {
+                // cout << "same lane car: " << other_car_s - car_s;
                 stay_in_lane_at_maximum_speed = false;
                 follow_car_in_front = true;
 
@@ -117,7 +120,7 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
     }
 
     if (changing_lanes(car_d, car_lane)) {
-        // do nothing
+        // do-nothing
     } else {
         if (stay_in_lane_at_maximum_speed) {
             if (ref_vel < maximum_allowed_velocity) {
@@ -134,9 +137,12 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
                 ref_vel -= maximum_allowed_speed_increment;
             }
         } else if (follow_car_in_front) {
-            double car_separation = target_car_in_front_position - car_s;
-            double car_speed_decrement = slow_down(car_separation);
-            ref_vel -= car_speed_decrement;
+            const double car_separation = target_car_in_front_position - car_s;
+            const double car_speed_decrement = slow_down(car_separation);
+            cout << " ref_vel: " << ref_vel << ", target_vel: " << target_car_in_front_speed << ", car_speed_decrement: " << car_speed_decrement << endl;
+            if (ref_vel > target_car_in_front_speed) {
+                ref_vel -= car_speed_decrement;
+            }
         }
 
         if (ref_vel > maximum_allowed_velocity) {
@@ -154,8 +160,8 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
     // WE CREATE 5 POINTS
 
     if (prev_size < 2) {
-        double prev_car_x = car_x - cos(car_yaw);
-        double prev_car_y = car_y - sin(car_yaw);
+        const double prev_car_x = car_x - cos(car_yaw);
+        const double prev_car_y = car_y - sin(car_yaw);
 
         anchor_points_x.push_back(prev_car_x);
         anchor_points_x.push_back(car_x);
@@ -166,8 +172,8 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
         ref_x = previous_path_x[prev_size - 1];
         ref_y = previous_path_y[prev_size - 1];
 
-        double ref_x_prev = previous_path_x[prev_size - 2];
-        double ref_y_prev = previous_path_y[prev_size - 2];
+        const double ref_x_prev = previous_path_x[prev_size - 2];
+        const double ref_y_prev = previous_path_y[prev_size - 2];
         ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
 
         anchor_points_x.push_back(ref_x_prev);
@@ -191,9 +197,10 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
 
     // WE ROTATE THE COORDINATES SO THAT THE YAW OF THE CAR IS ZERO
 
-    for (int i = 0; i < anchor_points_x.size(); i++) {
-        double shift_x = anchor_points_x[i] - ref_x;
-        double shift_y = anchor_points_y[i] - ref_y;
+    const int anchor_points_x_size = anchor_points_x.size();
+    for (int i = 0; i < anchor_points_x_size; i++) {
+        const double shift_x = anchor_points_x[i] - ref_x;
+        const double shift_y = anchor_points_y[i] - ref_y;
 
         anchor_points_x[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
         anchor_points_y[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
@@ -211,11 +218,11 @@ NextVals NextValsCalculator::Calculate( vector<double> previous_path_x, vector<d
     }
 
     // N_POINTS x 0.02_SECONDS x VELOCITY_DESIRED m/s = TARGET_DISTANCE
-    double target_x = target_car_in_front_position;
-    double target_y = spline(target_x);
-    double target_dist = sqrt((target_x * target_x) + (target_y * target_y));    
-    double N = target_dist / (0.02 * ref_vel / 2.24); // 2.24 MPH -> meters per second
-    double distance_between_points = target_x / N;
+    const double target_x = target_car_in_front_position;
+    const double target_y = spline(target_x);
+    const double target_dist = sqrt((target_x * target_x) + (target_y * target_y));    
+    const double N = target_dist / (0.02 * ref_vel / 2.24); // 2.24 MPH -> meters per second
+    const double distance_between_points = target_x / N;
 
     double x_add_on = 0;
 
