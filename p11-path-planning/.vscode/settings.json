@@ -61,5 +61,6 @@
         "typeinfo": "cpp",
         "vector": "cpp",
         "string_view": "cpp"
-    }
+    },
+    "C_Cpp.intelliSenseEngineFallback": "Disabled"
 }

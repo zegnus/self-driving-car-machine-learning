@@ -785,10 +785,10 @@ NextValsCalculator.h
 /home/fgarriga/Development/udacity/self-driving-car/submissions/p11-path-planning/src/NextValsCalculator.h
 utils.hpp
 /home/fgarriga/Development/udacity/self-driving-car/submissions/p11-path-planning/src/utils.hpp
-math.h
--
 spline.h
 /home/fgarriga/Development/udacity/self-driving-car/submissions/p11-path-planning/src/spline.h
+cmath
+-
 iostream
 -
 
