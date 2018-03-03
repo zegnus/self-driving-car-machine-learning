@@ -65,56 +65,40 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :return: The Tensor for the last layer of output
     """
     # encoder
-    with tf.name_scope("conv_1x1_layer_3"):
-        conv_1x1_layer_3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, padding='same',
-                                            kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
-                                            kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-        tf.summary.histogram("conv_1x1_layer_3", conv_1x1_layer_3)
+    conv_1x1_layer_3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, padding='same',
+                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
 
-    with tf.name_scope("conv_1x1_layer_4"):
-        conv_1x1_layer_4 = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, padding='same',
-                                            kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
-                                            kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-        tf.summary.histogram("conv_1x1_layer_4", conv_1x1_layer_4)
+    conv_1x1_layer_4 = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, padding='same',
+                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
 
-    with tf.name_scope("conv_1x1_layer_7"):
-        conv_1x1_layer_7 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, padding='same',
-                                            kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
-                                            kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-        tf.summary.histogram("conv_1x1_layer_7", conv_1x1_layer_7)
+    conv_1x1_layer_7 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, padding='same',
+                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
 
     # decoder
-    with tf.name_scope("upscale_1"):
-        upscale = tf.layers.conv2d_transpose(conv_1x1_layer_7, num_classes, 4,
-                                             strides=(2, 2),
-                                             padding='same',
-                                             kernel_initializer=tf.random_normal_initializer(stddev=0.01),
-                                             kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-        tf.summary.histogram("upscale_1", upscale)
+    upscale = tf.layers.conv2d_transpose(conv_1x1_layer_7, num_classes, 4,
+                                         strides=(2, 2),
+                                         padding='same',
+                                         kernel_initializer=tf.random_normal_initializer(stddev=0.01),
+                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
 
-    with tf.name_scope("skip_1"):
-        skip = tf.add(upscale, conv_1x1_layer_4)
-        tf.summary.histogram("skip_1", skip)
+    skip = tf.add(upscale, conv_1x1_layer_4)
 
-    with tf.name_scope("upscale_2"):
-        upscale = tf.layers.conv2d_transpose(skip, num_classes, 4,
-                                             strides=(2, 2),
-                                             padding='same',
-                                             kernel_initializer=tf.random_normal_initializer(stddev=0.01),
-                                             kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-        tf.summary.histogram("upscale_1", upscale)
+    upscale = tf.layers.conv2d_transpose(skip, num_classes, 4,
+                                         strides=(2, 2),
+                                         padding='same',
+                                         kernel_initializer=tf.random_normal_initializer(stddev=0.01),
+                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
 
-    with tf.name_scope("skip_2"):
-        skip = tf.add(upscale, conv_1x1_layer_3)
-        tf.summary.histogram("skip_2", skip)
+    skip = tf.add(upscale, conv_1x1_layer_3)
 
-    with tf.name_scope("upscale_3_output"):
-        upscale = tf.layers.conv2d_transpose(skip, num_classes, 16,
-                                             strides=(8, 8),
-                                             padding='same',
-                                             kernel_initializer=tf.random_normal_initializer(stddev=0.01),
-                                             kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-        tf.summary.histogram("upscale_3_output", upscale)
+    upscale = tf.layers.conv2d_transpose(skip, num_classes, 16,
+                                         strides=(8, 8),
+                                         padding='same',
+                                         kernel_initializer=tf.random_normal_initializer(stddev=0.01),
+                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
 
     return upscale
 
@@ -135,14 +119,10 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     logits = tf.reshape(nn_last_layer, (-1, num_classes))
     labels = tf.reshape(correct_label, (-1, num_classes))
 
-    with tf.name_scope("cross_entropy_loss"):
-        cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels))
-        tf.summary.scalar("cross_entropy_loss", cross_entropy_loss)
+    cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels))
+    tf.summary.scalar("cross_entropy_loss", cross_entropy_loss)
 
-    with tf.name_scope("train_op"):
-        optimizer = tf.train.AdamOptimizer(learning_rate)
-
-    train_op = optimizer.minimize(cross_entropy_loss)
+    train_op = tf.train.AdamOptimizer(learning_rate).minimize(cross_entropy_loss)
 
     return logits, train_op, cross_entropy_loss
 
@@ -184,7 +164,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
                         learning_rate: 0.0009
                     }
                 )
-                print("Training loss: {}".format(loss))
+                print("Epoch: {}, iteration: {}, training loss: {}".format(epoch + 1, iterations, loss))
                 writer.add_summary(summary_out, iterations)
 
             else:
@@ -197,7 +177,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
                         learning_rate: 0.0009
                     }
                 )
-                print("Epoch: {}, batch: {}, training loss: {}".format(epoch + 1, iterations, loss))
+                print("Epoch: {}, iteration: {}, training loss: {}".format(epoch + 1, iterations, loss))
 
             iterations += 1
 
