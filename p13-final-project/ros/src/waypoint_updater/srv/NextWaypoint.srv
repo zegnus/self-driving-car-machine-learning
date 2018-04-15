@@ -1,0 +1,4 @@
+geometry_msgs/PoseStamped pose
+styx_msgs/Waypoint[] waypoints
+---
+std_msgs/Int32 next_waypoint

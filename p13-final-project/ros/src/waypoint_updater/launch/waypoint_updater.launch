@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="waypoint_updater" type="node.py" name="waypoint_updater">
+        <param name="max_decel" value="0.5" />
+        <param name="lookahead_wps" value="200" />
+    </node>
+</launch>
